@@ -1,5 +1,7 @@
-import { createContext, useContext, useState } from 'react'
-import { api } from '../api'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { api, AUTH_EXPIRED_EVENT } from '../api'
+import { useToast } from './ToastContext'
 
 const AuthContext = createContext(null)
 
@@ -8,6 +10,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(
     JSON.parse(localStorage.getItem('user') || 'null')
   )
+  const toast = useToast()
+  const navigate = useNavigate()
 
   function persist(data) {
     setToken(data.token)
@@ -32,6 +36,23 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
   }
+
+  // Si cualquier llamada a la API responde 401 (token vencido o inválido),
+  // cerramos sesión automáticamente y mandamos al usuario a login en vez
+  // de dejarlo viendo una pantalla rota con "Error 401".
+  useEffect(() => {
+    function handleExpired() {
+      const hadSession = !!localStorage.getItem('token')
+      logout()
+      if (hadSession) {
+        toast?.error('Tu sesión expiró. Inicia sesión de nuevo.')
+        navigate('/login')
+      }
+    }
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired)
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <AuthContext.Provider value={{ token, user, login, register, logout }}>

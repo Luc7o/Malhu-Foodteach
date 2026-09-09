@@ -15,7 +15,7 @@ y validación del código (la llamada que hará el ESP32).
 ```bash
 cd backend
 python3 -m venv venv
-venv\Scripts\activate
+source venv/bin/activate        # en Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
