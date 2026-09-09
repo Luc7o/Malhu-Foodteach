@@ -14,7 +14,7 @@ y validación del código (la llamada que hará el ESP32).
 
 ```bash
 cd backend
-python -m venv venv
+python3 -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 ```
@@ -87,4 +87,26 @@ en `http://localhost:5000` (ver `src/api.js` si cambias el puerto).
   página (modo Access Point), se conecte a una red WiFi con internet y
   llame a `POST /api/locker/validate` cuando el escáner QR lea un código
 - Reemplazar el "pago simulado" por una pasarela real
-- Diseño visual del frontend (por ahora es 100% funcional, sin estilos)
+
+## Diseño y funcionalidades del frontend (actualizado)
+
+El frontend ahora usa **Tailwind CSS** con un diseño propio (marca "Malhu
+Foodtech", paleta naranja/food-tech, tipografía Poppins). Se agregaron:
+
+- Catálogo: buscador, orden por precio/nombre, selector de cantidad,
+  badges de "sin stock" / "poco stock", skeletons de carga.
+- Carrito: controles +/- de cantidad, carrito persistente (localStorage),
+  selección de locker con disponibilidad de cajas, resumen de pedido.
+- Notificaciones tipo *toast* para acciones (agregar al carrito, pagar,
+  errores, etc).
+- Mis pedidos: filtros por estado, badges de estado, copiar código QR con
+  un clic.
+- Navbar responsive con menú móvil y contador de carrito.
+- Panel admin: dashboard con tarjetas e íconos, modal para crear/editar
+  productos (con preview de imagen y toggle activo/inactivo), tabla de
+  productos con búsqueda, tabla de órdenes con filtros por estado y
+  búsqueda por ID/código.
+- Página 404 y estados vacíos (empty states) en todas las listas.
+
+No se modificó el backend (Flask); todo lo anterior consume los mismos
+endpoints ya existentes.
