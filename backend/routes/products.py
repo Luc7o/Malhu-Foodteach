@@ -7,9 +7,31 @@ from utils import admin_required
 products_bp = Blueprint("products", __name__, url_prefix="/api")
 
 
+def _parse_price_stock(data, product=None):
+    """Valida price y stock. Devuelve (price, stock, error)."""
+    price = data.get("price", product.price if product else None)
+    stock = data.get("stock", product.stock if product else None)
+    try:
+        price = round(float(price), 2)
+        stock = int(stock)
+    except (TypeError, ValueError):
+        return None, None, "price debe ser un número y stock un entero"
+    if price < 0 or stock < 0:
+        return None, None, "price y stock no pueden ser negativos"
+    return price, stock, None
+
+
 @products_bp.get("/products")
 def list_products():
-    products = Product.query.filter_by(active=True).all()
+    products = Product.query.filter_by(active=True).order_by(Product.name).all()
+    return jsonify([p.to_dict() for p in products])
+
+
+@products_bp.get("/admin/products")
+@admin_required
+def list_all_products():
+    """Incluye productos inactivos, para el panel de administración."""
+    products = Product.query.order_by(Product.name).all()
     return jsonify([p.to_dict() for p in products])
 
 
@@ -26,12 +48,19 @@ def create_product():
     required = ["name", "price", "stock"]
     if any(f not in data for f in required):
         return jsonify({"error": f"Campos requeridos: {required}"}), 400
+    if not str(data["name"]).strip():
+        return jsonify({"error": "El nombre no puede estar vacío"}), 400
+
+    price, stock, error = _parse_price_stock(data)
+    if error:
+        return jsonify({"error": error}), 400
 
     product = Product(
-        name=data["name"],
+        name=str(data["name"]).strip(),
         description=data.get("description", ""),
-        price=data["price"],
-        stock=data["stock"],
+        category=(data.get("category") or "").strip() or None,
+        price=price,
+        stock=stock,
         image_url=data.get("image_url"),
         active=data.get("active", True),
     )
@@ -46,9 +75,18 @@ def update_product(product_id):
     product = Product.query.get_or_404(product_id)
     data = request.get_json() or {}
 
-    for field in ["name", "description", "price", "stock", "image_url", "active"]:
+    if "price" in data or "stock" in data:
+        price, stock, error = _parse_price_stock(data, product)
+        if error:
+            return jsonify({"error": error}), 400
+        product.price = price
+        product.stock = stock
+
+    for field in ["name", "description", "image_url", "active"]:
         if field in data:
             setattr(product, field, data[field])
+    if "category" in data:
+        product.category = (data["category"] or "").strip() or None
 
     db.session.commit()
     return jsonify(product.to_dict())

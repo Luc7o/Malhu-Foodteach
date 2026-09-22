@@ -8,8 +8,10 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Cart from './pages/Cart'
 import MyOrders from './pages/MyOrders'
+import OrderDetail from './pages/OrderDetail'
 import NotFound from './pages/NotFound'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminLockers from './pages/admin/AdminLockers'
 import AdminProducts from './pages/admin/AdminProducts'
 import AdminOrders from './pages/admin/AdminOrders'
 
@@ -23,38 +25,12 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/cart" element={<Cart />} />
-          <Route
-            path="/orders"
-            element={
-              <RequireAuth>
-                <MyOrders />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <RequireAdmin>
-                <AdminDashboard />
-              </RequireAdmin>
-            }
-          />
-          <Route
-            path="/admin/products"
-            element={
-              <RequireAdmin>
-                <AdminProducts />
-              </RequireAdmin>
-            }
-          />
-          <Route
-            path="/admin/orders"
-            element={
-              <RequireAdmin>
-                <AdminOrders />
-              </RequireAdmin>
-            }
-          />
+          <Route path="/orders" element={<RequireAuth><MyOrders /></RequireAuth>} />
+          <Route path="/orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
+          <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+          <Route path="/admin/lockers" element={<RequireAdmin><AdminLockers /></RequireAdmin>} />
+          <Route path="/admin/products" element={<RequireAdmin><AdminProducts /></RequireAdmin>} />
+          <Route path="/admin/orders" element={<RequireAdmin><AdminOrders /></RequireAdmin>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

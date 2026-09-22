@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,7 +9,15 @@ html {
 }
 
 body {
-  @apply bg-ink-50 text-ink-800 antialiased;
+  @apply bg-ink-50 font-sans text-ink-800 antialiased;
+}
+
+h1, h2, h3 {
+  @apply font-display tracking-tight;
+}
+
+:focus-visible {
+  @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-ink-50;
 }
 
 ::-webkit-scrollbar {
@@ -20,7 +28,7 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-ink-200 rounded-full;
+  @apply rounded-full bg-ink-200;
 }
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-ink-300;
@@ -28,32 +36,60 @@ body {
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
-      transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 rounded-[10px] px-4 py-2.5 text-sm font-semibold
+      transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-brand-600 text-white shadow-soft hover:bg-brand-700;
+    @apply btn bg-brand-600 text-white hover:bg-brand-700;
   }
   .btn-secondary {
-    @apply btn bg-white text-ink-700 border border-ink-200 hover:bg-ink-50;
+    @apply btn border border-ink-200 bg-white text-ink-700 hover:border-ink-300 hover:bg-ink-50;
   }
   .btn-danger {
-    @apply btn bg-red-50 text-red-600 hover:bg-red-100;
+    @apply btn border border-red-200 bg-white text-red-600 hover:bg-red-50;
   }
   .btn-ghost {
-    @apply btn bg-transparent text-ink-500 hover:bg-ink-100;
+    @apply btn bg-transparent text-ink-600 hover:bg-ink-100;
   }
   .input {
-    @apply w-full rounded-xl border border-ink-200 bg-white px-4 py-2.5 text-sm text-ink-800
+    @apply w-full rounded-[10px] border border-ink-200 bg-white px-3.5 py-2.5 text-sm text-ink-800
       placeholder:text-ink-400 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100;
   }
   .label {
-    @apply mb-1.5 block text-sm font-medium text-ink-600;
+    @apply mb-1.5 block text-sm font-medium text-ink-700;
   }
-  .card {
-    @apply rounded-2xl border border-ink-100 bg-white shadow-soft;
+  .panel {
+    @apply rounded-2xl border border-ink-200 bg-white;
   }
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
+    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold;
   }
+  .chip {
+    @apply rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors;
+  }
+  .chip-on {
+    @apply chip border-ink-900 bg-ink-900 text-white;
+  }
+  .chip-off {
+    @apply chip border-ink-200 bg-white text-ink-600 hover:border-ink-300;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Puertas del locker: la primera caja libre se abre una vez al cargar la portada */
+@keyframes door-demo {
+  0%, 100% { transform: rotateY(0deg); }
+  30%, 65% { transform: rotateY(-58deg); }
+}
+.door-demo {
+  animation: door-demo 2.6s ease-in-out 0.7s 1;
 }

@@ -2,6 +2,7 @@ import uuid
 import secrets
 from datetime import datetime, timedelta
 
+from flask import current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from extensions import db
@@ -9,6 +10,11 @@ from extensions import db
 
 def gen_uuid():
     return str(uuid.uuid4())
+
+
+def iso(dt):
+    """Fechas en UTC con sufijo Z, para que el navegador no las interprete como hora local."""
+    return dt.isoformat() + "Z" if dt else None
 
 
 class User(db.Model):
@@ -42,6 +48,7 @@ class Product(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
     name = db.Column(db.String(150), nullable=False)
     description = db.Column(db.Text, nullable=True)
+    category = db.Column(db.String(60), nullable=True)
     price = db.Column(db.Numeric(10, 2), nullable=False)
     stock = db.Column(db.Integer, nullable=False, default=0)
     image_url = db.Column(db.String(500), nullable=True)
@@ -53,6 +60,7 @@ class Product(db.Model):
             "id": self.id,
             "name": self.name,
             "description": self.description,
+            "category": self.category,
             "price": float(self.price),
             "stock": self.stock,
             "image_url": self.image_url,
@@ -69,12 +77,29 @@ class Locker(db.Model):
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
     device_id = db.Column(db.String(100), unique=True, nullable=False)  # identifica al ESP32 físico
+    # Clave secreta opcional del ESP32. Si está definida, el firmware debe enviarla
+    # en la cabecera X-Device-Key. Si es NULL, el locker acepta llamadas sin clave
+    # (útil para el prototipo, no recomendado en producción).
+    device_key = db.Column(db.String(64), nullable=True)
+    last_seen = db.Column(db.DateTime, nullable=True)
     active = db.Column(db.Boolean, default=True)
 
-    boxes = db.relationship("LockerBox", backref="locker", lazy=True)
+    boxes = db.relationship(
+        "LockerBox", backref="locker", lazy=True, order_by="LockerBox.box_number"
+    )
 
-    def to_dict(self):
-        return {
+    @staticmethod
+    def generate_key():
+        return secrets.token_urlsafe(24)
+
+    def is_online(self):
+        if not self.last_seen:
+            return False
+        window = current_app.config.get("DEVICE_ONLINE_SECONDS", 90)
+        return datetime.utcnow() - self.last_seen < timedelta(seconds=window)
+
+    def to_dict(self, admin=False):
+        data = {
             "id": self.id,
             "name": self.name,
             "address": self.address,
@@ -82,9 +107,18 @@ class Locker(db.Model):
             "longitude": self.longitude,
             "device_id": self.device_id,
             "active": self.active,
+            "online": self.is_online(),
             "boxes_total": len(self.boxes),
             "boxes_libres": len([b for b in self.boxes if b.status == "libre"]),
+            "boxes": [
+                {"id": b.id, "box_number": b.box_number, "status": b.status}
+                for b in self.boxes
+            ],
         }
+        if admin:
+            data["device_key"] = self.device_key
+            data["last_seen"] = iso(self.last_seen)
+        return data
 
 
 class LockerBox(db.Model):
@@ -93,7 +127,8 @@ class LockerBox(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
     locker_id = db.Column(db.String(36), db.ForeignKey("lockers.id"), nullable=False)
     box_number = db.Column(db.Integer, nullable=False)
-    status = db.Column(db.String(20), nullable=False, default="libre")  # libre | ocupado
+    # libre | ocupado | mantenimiento (mantenimiento = fuera de servicio o con comida sin retirar)
+    status = db.Column(db.String(20), nullable=False, default="libre")
 
     def to_dict(self):
         return {
@@ -114,24 +149,46 @@ class Order(db.Model):
     # pendiente_pago | pagado | retirado | expirado | cancelado
     status = db.Column(db.String(20), nullable=False, default="pendiente_pago")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    paid_at = db.Column(db.DateTime, nullable=True)
+    payment_method = db.Column(db.String(30), nullable=True)
+    payment_ref = db.Column(db.String(100), nullable=True)
 
     items = db.relationship("OrderItem", backref="order", lazy=True)
     pickup_code = db.relationship("PickupCode", backref="order", uselist=False, lazy=True)
+    user = db.relationship("User")
+    locker = db.relationship("Locker")
 
-    def to_dict(self, include_items=True):
+    def pending_expires_at(self):
+        ttl = current_app.config.get("PENDING_ORDER_TTL_MINUTES", 30)
+        return self.created_at + timedelta(minutes=ttl)
+
+    def to_dict(self, include_items=True, admin=False):
         data = {
             "id": self.id,
             "user_id": self.user_id,
             "locker_id": self.locker_id,
+            "locker_name": self.locker.name if self.locker else None,
+            "locker_address": self.locker.address if self.locker else None,
             "total": float(self.total),
             "status": self.status,
-            "created_at": self.created_at.isoformat(),
+            "created_at": iso(self.created_at),
+            "paid_at": iso(self.paid_at),
+            "payment_method": self.payment_method,
+            "pending_expires_at": iso(self.pending_expires_at())
+            if self.status == "pendiente_pago"
+            else None,
         }
         if include_items:
             data["items"] = [i.to_dict() for i in self.items]
         if self.pickup_code:
             data["pickup_code"] = self.pickup_code.code
+            data["pickup_status"] = self.pickup_code.status
+            data["pickup_expires_at"] = iso(self.pickup_code.expires_at)
+            data["used_at"] = iso(self.pickup_code.used_at)
             data["box_number"] = self.pickup_code.box.box_number if self.pickup_code.box else None
+        if admin:
+            data["customer_name"] = self.user.name if self.user else None
+            data["customer_email"] = self.user.email if self.user else None
         return data
 
 

@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { Spinner } from '../components/ui'
+import AuthShell from '../components/AuthShell'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -20,7 +22,7 @@ export default function Login() {
     setLoading(true)
     try {
       await login(email, password)
-      toast.success('¡Bienvenido de vuelta!')
+      toast.success('Sesión iniciada')
       navigate('/')
     } catch (err) {
       setError(err.message)
@@ -30,66 +32,67 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center px-4 py-10">
-      <div className="card w-full max-w-sm p-8">
-        <div className="mb-6 text-center">
-          <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-2xl text-white shadow-soft">
-            🍱
-          </span>
-          <h2 className="text-xl font-bold text-ink-900">Bienvenido a Malhu</h2>
-          <p className="text-sm text-ink-400">Ingresa a tu cuenta para continuar</p>
+    <AuthShell
+      title="Inicia sesión"
+      subtitle="Entra para ver y pagar tus pedidos."
+      footer={
+        <>
+          ¿Aún no tienes cuenta?{' '}
+          <Link to="/register" className="font-semibold text-brand-700 hover:underline">
+            Crea una
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="email" className="label">Correo</label>
+          <input
+            id="email"
+            className="input"
+            type="email"
+            autoComplete="email"
+            placeholder="tucorreo@ejemplo.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="label">Correo</label>
+        <div>
+          <label htmlFor="password" className="label">Contraseña</label>
+          <div className="relative">
             <input
-              className="input"
-              type="email"
-              placeholder="tucorreo@ejemplo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="password"
+              className="input pr-11"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute inset-y-0 right-3 text-ink-400 hover:text-ink-700"
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
           </div>
-          <div>
-            <label className="label">Contraseña</label>
-            <div className="relative">
-              <input
-                className="input pr-10"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((s) => !s)}
-                className="absolute inset-y-0 right-3 text-sm text-ink-400 hover:text-ink-600"
-              >
-                {showPassword ? '🙈' : '👁️'}
-              </button>
-            </div>
-          </div>
+        </div>
 
-          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
 
-          <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? <Spinner className="h-4 w-4 text-white" /> : 'Entrar'}
-          </button>
-        </form>
+        <button type="submit" disabled={loading} className="btn-primary w-full !py-3">
+          {loading ? <Spinner className="h-4 w-4" /> : 'Entrar'}
+        </button>
+      </form>
 
-        <p className="mt-5 text-center text-sm text-ink-500">
-          ¿No tienes cuenta?{' '}
-          <Link to="/register" className="font-semibold text-brand-600 hover:underline">
-            Regístrate
-          </Link>
+      {import.meta.env.DEV && (
+        <p className="mt-4 rounded-lg bg-ink-100 px-3 py-2 text-xs text-ink-500">
+          Solo en desarrollo: admin@malhu.com / admin123 (después de correr seed.py)
         </p>
-        <p className="mt-3 rounded-lg bg-ink-50 px-3 py-2 text-center text-xs text-ink-400">
-          Admin de prueba: admin@malhu.com / admin123
-        </p>
-      </div>
-    </div>
+      )}
+    </AuthShell>
   )
 }

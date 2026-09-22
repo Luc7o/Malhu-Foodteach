@@ -1,103 +1,104 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { api } from '../../api'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import AdminNav from '../../components/AdminNav'
 import { EmptyState, PageLoader, ProductImage, Spinner } from '../../components/ui'
+import { money } from '../../lib/format'
 
-const emptyForm = { name: '', description: '', price: '', stock: '', image_url: '', active: true }
+const EMPTY_FORM = { name: '', description: '', category: '', price: '', stock: '', image_url: '', active: true }
 
-function ProductModal({ open, onClose, form, setForm, onSubmit, editing, saving, error }) {
-  if (!open) return null
+function ProductForm({ initial, onCancel, onSaved }) {
+  const { token } = useAuth()
+  const toast = useToast()
+  const [form, setForm] = useState(initial || EMPTY_FORM)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const isEdit = Boolean(initial?.id)
+
+  function set(field, value) {
+    setForm((f) => ({ ...f, [field]: value }))
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError('')
+    const price = parseFloat(form.price)
+    const stock = parseInt(form.stock, 10)
+    if (!form.name.trim()) return setError('El nombre es obligatorio')
+    if (Number.isNaN(price) || price < 0) return setError('Ingresa un precio válido')
+    if (Number.isNaN(stock) || stock < 0) return setError('Ingresa un stock válido')
+
+    setSaving(true)
+    const payload = { ...form, price, stock }
+    try {
+      const saved = isEdit
+        ? await api.updateProduct(token, initial.id, payload)
+        : await api.createProduct(token, payload)
+      toast.success(isEdit ? 'Producto actualizado' : 'Producto creado')
+      onSaved(saved)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 px-4 backdrop-blur-sm">
-      <div className="card w-full max-w-lg animate-fade-in p-6">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink-900/40 p-4" role="dialog" aria-modal="true">
+      <form onSubmit={handleSubmit} className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-pop">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-ink-900">
-            {editing ? 'Editar producto' : 'Nuevo producto'}
-          </h3>
-          <button onClick={onClose} className="text-ink-400 hover:text-ink-700">
-            ✕
+          <h2 className="text-lg font-bold text-ink-900">{isEdit ? 'Editar producto' : 'Nuevo producto'}</h2>
+          <button type="button" onClick={onCancel} className="rounded-lg p-1.5 text-ink-400 hover:bg-ink-100" aria-label="Cerrar">
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-3">
+        <div className="space-y-3">
           <div>
             <label className="label">Nombre</label>
-            <input
-              className="input"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
+            <input className="input" value={form.name} onChange={(e) => set('name', e.target.value)} required />
           </div>
           <div>
             <label className="label">Descripción</label>
-            <textarea
-              className="input"
-              rows={2}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
+            <textarea className="input" rows={2} value={form.description} onChange={(e) => set('description', e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Categoría</label>
+              <input className="input" value={form.category} onChange={(e) => set('category', e.target.value)} placeholder="Sándwiches" />
+            </div>
+            <div>
+              <label className="label">Imagen (URL)</label>
+              <input className="input" value={form.image_url || ''} onChange={(e) => set('image_url', e.target.value)} placeholder="https://..." />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Precio (S/.)</label>
-              <input
-                className="input"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
-                required
-              />
+              <input className="input" type="number" step="0.10" min="0" value={form.price} onChange={(e) => set('price', e.target.value)} required />
             </div>
             <div>
               <label className="label">Stock</label>
-              <input
-                className="input"
-                type="number"
-                min="0"
-                value={form.stock}
-                onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                required
-              />
+              <input className="input" type="number" min="0" value={form.stock} onChange={(e) => set('stock', e.target.value)} required />
             </div>
           </div>
-          <div>
-            <label className="label">URL de imagen (opcional)</label>
-            <input
-              className="input"
-              placeholder="https://..."
-              value={form.image_url}
-              onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-            />
-          </div>
-          {form.image_url && (
-            <ProductImage src={form.image_url} alt="preview" className="h-28 w-28 rounded-xl object-cover" />
-          )}
-          <label className="flex items-center gap-2 text-sm text-ink-600">
-            <input
-              type="checkbox"
-              checked={form.active}
-              onChange={(e) => setForm({ ...form, active: e.target.checked })}
-              className="h-4 w-4 accent-brand-600"
-            />
-            Producto activo (visible en catálogo)
+          <label className="flex items-center gap-2 text-sm text-ink-700">
+            <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={form.active} onChange={(e) => set('active', e.target.checked)} />
+            Visible en el menú
           </label>
+        </div>
 
-          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
 
-          <div className="flex gap-2 pt-2">
-            <button type="submit" disabled={saving} className="btn-primary flex-1">
-              {saving ? <Spinner className="h-4 w-4 text-white" /> : editing ? 'Guardar cambios' : 'Crear producto'}
-            </button>
-            <button type="button" onClick={onClose} className="btn-secondary">
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onCancel} className="btn-secondary">Cancelar</button>
+          <button type="submit" disabled={saving} className="btn-primary">
+            {saving ? <Spinner className="h-4 w-4" /> : 'Guardar'}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
@@ -107,174 +108,100 @@ export default function AdminProducts() {
   const toast = useToast()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState(emptyForm)
-  const [editingId, setEditingId] = useState(null)
-  const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [modalOpen, setModalOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const [deletingId, setDeletingId] = useState(null)
+  const [editing, setEditing] = useState(null) // null = cerrado, {} = nuevo, objeto = editar
+  const [busyId, setBusyId] = useState(null)
 
-  function loadProducts() {
+  function load() {
     setLoading(true)
-    api.getProducts().then(setProducts).finally(() => setLoading(false))
+    api.getAdminProducts(token).then(setProducts).catch((e) => toast.error(e.message)).finally(() => setLoading(false))
   }
 
-  useEffect(loadProducts, [])
+  useEffect(load, [token])
 
-  function openCreate() {
-    setForm(emptyForm)
-    setEditingId(null)
-    setError('')
-    setModalOpen(true)
-  }
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return products.filter((p) => p.name.toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q))
+  }, [products, search])
 
-  function handleEdit(p) {
-    setForm({
-      name: p.name,
-      description: p.description || '',
-      price: p.price,
-      stock: p.stock,
-      image_url: p.image_url || '',
-      active: p.active !== false,
+  function handleSaved(saved) {
+    setProducts((prev) => {
+      const exists = prev.some((p) => p.id === saved.id)
+      return exists ? prev.map((p) => (p.id === saved.id ? saved : p)) : [saved, ...prev]
     })
-    setEditingId(p.id)
-    setError('')
-    setModalOpen(true)
+    setEditing(null)
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault()
-    setError('')
-    setSaving(true)
+  async function handleDelete(product) {
+    if (!confirm(`¿Quitar "${product.name}" del menú?`)) return
+    setBusyId(product.id)
     try {
-      const payload = {
-        ...form,
-        price: parseFloat(form.price),
-        stock: parseInt(form.stock),
-        image_url: form.image_url || null,
-      }
-      if (editingId) {
-        await api.updateProduct(token, editingId, payload)
-        toast.success('Producto actualizado')
-      } else {
-        await api.createProduct(token, payload)
-        toast.success('Producto creado')
-      }
-      setModalOpen(false)
-      loadProducts()
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleDelete(id) {
-    if (!confirm('¿Desactivar este producto? Dejará de verse en el catálogo.')) return
-    setDeletingId(id)
-    try {
-      await api.deleteProduct(token, id)
-      toast.success('Producto desactivado')
-      loadProducts()
+      await api.deleteProduct(token, product.id)
+      toast.success('Producto quitado del menú')
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, active: false } : p)))
     } catch (e) {
       toast.error(e.message)
     } finally {
-      setDeletingId(null)
+      setBusyId(null)
     }
   }
 
-  const filtered = useMemo(
-    () => products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase())),
-    [products, search]
-  )
-
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold text-ink-900">Productos</h2>
-        <button onClick={openCreate} className="btn-primary">
-          + Nuevo producto
+    <div className="mx-auto max-w-6xl px-4 py-10">
+      <h1 className="mb-1 text-3xl font-bold text-ink-900">Administración</h1>
+      <p className="mb-6 text-ink-500">Productos del menú.</p>
+      <AdminNav />
+
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative sm:w-64">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" aria-hidden="true" />
+          <input className="input !pl-9" placeholder="Buscar producto" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <button onClick={() => setEditing({})} className="btn-primary">
+          <Plus className="h-4 w-4" aria-hidden="true" /> Nuevo producto
         </button>
       </div>
 
-      <input
-        className="input mb-4 sm:w-72"
-        placeholder="Buscar producto..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-
       {loading ? (
-        <PageLoader label="Cargando productos..." />
+        <PageLoader />
       ) : filtered.length === 0 ? (
-        <EmptyState icon="🍽️" title="No hay productos" subtitle="Crea tu primer producto para empezar a vender." />
+        <EmptyState title="No hay productos" subtitle="Crea el primero con el botón de arriba." />
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-ink-50 text-xs uppercase tracking-wide text-ink-400">
-              <tr>
-                <th className="px-4 py-3">Producto</th>
-                <th className="px-4 py-3">Precio</th>
-                <th className="px-4 py-3">Stock</th>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-ink-100">
-              {filtered.map((p) => (
-                <tr key={p.id} className="hover:bg-ink-50/60">
-                  <td className="flex items-center gap-3 px-4 py-3">
-                    <ProductImage src={p.image_url} alt={p.name} className="h-10 w-10 rounded-lg object-cover" />
-                    <div>
-                      <p className="font-medium text-ink-800">{p.name}</p>
-                      {p.description && (
-                        <p className="max-w-xs truncate text-xs text-ink-400">{p.description}</p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-medium text-ink-700">S/. {p.price.toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    <span className={p.stock === 0 ? 'font-semibold text-red-500' : 'text-ink-700'}>
-                      {p.stock}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`badge ${p.active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-ink-100 text-ink-500'}`}>
-                      {p.active !== false ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => handleEdit(p)} className="btn-secondary !px-3 !py-1.5 text-xs">
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDelete(p.id)}
-                        disabled={deletingId === p.id}
-                        className="btn-danger !px-3 !py-1.5 text-xs"
-                      >
-                        {deletingId === p.id ? <Spinner className="h-3 w-3" /> : 'Desactivar'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((p) => (
+            <div key={p.id} className={`panel flex gap-3 p-3 ${!p.active ? 'opacity-50' : ''}`}>
+              <ProductImage src={p.image_url} alt={p.name} category={p.category} className="h-16 w-16 shrink-0 rounded-lg object-cover" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-ink-900">{p.name}</p>
+                <p className="text-xs text-ink-400">{p.category || 'Sin categoría'}</p>
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="font-display font-bold text-ink-900">{money(p.price)}</span>
+                  <span className={`text-xs ${p.stock === 0 ? 'text-red-600' : 'text-ink-500'}`}>Stock: {p.stock}</span>
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-col gap-1">
+                <button onClick={() => setEditing(p)} className="rounded-lg p-1.5 text-ink-400 hover:bg-ink-100 hover:text-ink-700" aria-label={`Editar ${p.name}`}>
+                  <Pencil className="h-4 w-4" />
+                </button>
+                {p.active && (
+                  <button
+                    onClick={() => handleDelete(p)}
+                    disabled={busyId === p.id}
+                    className="rounded-lg p-1.5 text-ink-400 hover:bg-red-50 hover:text-red-600"
+                    aria-label={`Quitar ${p.name} del menú`}
+                  >
+                    {busyId === p.id ? <Spinner className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      <ProductModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        form={form}
-        setForm={setForm}
-        onSubmit={handleSubmit}
-        editing={!!editingId}
-        saving={saving}
-        error={error}
-      />
+      {editing !== null && (
+        <ProductForm initial={editing.id ? editing : null} onCancel={() => setEditing(null)} onSaved={handleSaved} />
+      )}
     </div>
   )
 }

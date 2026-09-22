@@ -1,4 +1,6 @@
-const API_URL = 'http://localhost:5000/api'
+// En desarrollo apunta al backend local. En producción define VITE_API_URL
+// (por ejemplo https://api.tudominio.com/api) al construir el frontend.
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 // Nombre del evento global que se dispara cuando el backend responde 401
 // (token vencido o inválido). AuthContext escucha este evento para cerrar
@@ -8,7 +10,7 @@ export const AUTH_EXPIRED_EVENT = 'malhu:auth-expired'
 const ERROR_MESSAGES = {
   401: 'Tu sesión expiró. Inicia sesión de nuevo.',
   403: 'No tienes permisos para hacer esto.',
-  404: 'No se encontró el recurso solicitado.',
+  404: 'No se encontró lo que buscas.',
   500: 'Ocurrió un error en el servidor. Intenta de nuevo.',
 }
 
@@ -40,12 +42,15 @@ async function request(path, { method = 'GET', body, token } = {}) {
 }
 
 export const api = {
+  getConfig: () => request('/config'),
+
   register: (name, email, password) =>
     request('/auth/register', { method: 'POST', body: { name, email, password } }),
   login: (email, password) =>
     request('/auth/login', { method: 'POST', body: { email, password } }),
 
   getProducts: () => request('/products'),
+  getAdminProducts: (token) => request('/admin/products', { token }),
   createProduct: (token, product) =>
     request('/admin/products', { method: 'POST', body: product, token }),
   updateProduct: (token, id, product) =>
@@ -54,16 +59,28 @@ export const api = {
     request(`/admin/products/${id}`, { method: 'DELETE', token }),
 
   getLockers: () => request('/lockers'),
+  getAdminLockers: (token) => request('/admin/lockers', { token }),
   createLocker: (token, locker) =>
     request('/admin/lockers', { method: 'POST', body: locker, token }),
+  updateLocker: (token, id, data) =>
+    request(`/admin/lockers/${id}`, { method: 'PUT', body: data, token }),
+  rotateLockerKey: (token, id) =>
+    request(`/admin/lockers/${id}/rotate-key`, { method: 'POST', token }),
+  setBoxStatus: (token, boxId, status) =>
+    request(`/admin/boxes/${boxId}`, { method: 'PATCH', body: { status }, token }),
 
   createOrder: (token, items, lockerId) =>
     request('/orders', { method: 'POST', body: { items, locker_id: lockerId }, token }),
-  payOrder: (token, orderId) =>
-    request(`/orders/${orderId}/pay`, { method: 'POST', token }),
+  payOrder: (token, orderId, method) =>
+    request(`/orders/${orderId}/pay`, { method: 'POST', body: { method }, token }),
+  cancelOrder: (token, orderId) =>
+    request(`/orders/${orderId}/cancel`, { method: 'POST', token }),
+  getOrder: (token, orderId) => request(`/orders/${orderId}`, { token }),
   getOrderQr: (token, orderId) => request(`/orders/${orderId}/qr`, { token }),
   getMyOrders: (token) => request('/orders/my', { token }),
 
   getAdminOrders: (token) => request('/admin/orders', { token }),
+  cancelAdminOrder: (token, orderId) =>
+    request(`/admin/orders/${orderId}/cancel`, { method: 'POST', token }),
   getAdminStats: (token) => request('/admin/stats', { token }),
 }

@@ -56,7 +56,7 @@ export function ToastProvider({ children }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`pointer-events-auto flex w-full max-w-sm animate-slide-in items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white shadow-card ${STYLES[t.type]}`}
+            className={`pointer-events-auto flex w-full max-w-sm animate-slide-in items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white shadow-pop ${STYLES[t.type]}`}
           >
             {ICONS[t.type]}
             <span className="flex-1">{t.message}</span>

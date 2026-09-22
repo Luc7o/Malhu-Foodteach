@@ -1,105 +1,132 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Ban, Receipt, Search } from 'lucide-react'
 import { api } from '../../api'
 import { useAuth } from '../../context/AuthContext'
-import { EmptyState, PageLoader, StatusBadge } from '../../components/ui'
+import { useToast } from '../../context/ToastContext'
+import AdminNav from '../../components/AdminNav'
+import { EmptyState, PageLoader, Spinner, StatusBadge } from '../../components/ui'
+import { formatDateTime, money, shortId } from '../../lib/format'
 
-const STATUS_FILTERS = [
+const FILTERS = [
   ['todos', 'Todos'],
-  ['pendiente_pago', 'Pendiente de pago'],
-  ['pagado', 'Pagado'],
-  ['retirado', 'Retirado'],
-  ['expirado', 'Expirado'],
-  ['cancelado', 'Cancelado'],
+  ['pendiente_pago', 'Por pagar'],
+  ['pagado', 'Por retirar'],
+  ['retirado', 'Retirados'],
+  ['expirado', 'Vencidos'],
+  ['cancelado', 'Cancelados'],
 ]
 
 export default function AdminOrders() {
   const { token } = useAuth()
+  const toast = useToast()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
-  const [status, setStatus] = useState('todos')
+  const [filter, setFilter] = useState('todos')
   const [search, setSearch] = useState('')
+  const [busyId, setBusyId] = useState(null)
 
-  useEffect(() => {
-    api.getAdminOrders(token).then(setOrders).finally(() => setLoading(false))
-  }, [token])
+  function load() {
+    setLoading(true)
+    api.getAdminOrders(token).then(setOrders).catch((e) => toast.error(e.message)).finally(() => setLoading(false))
+  }
+
+  useEffect(load, [token])
 
   const filtered = useMemo(() => {
-    return orders.filter((o) => {
-      const matchesStatus = status === 'todos' || o.status === status
-      const matchesSearch =
-        !search ||
-        o.id.toLowerCase().includes(search.toLowerCase()) ||
-        (o.pickup_code || '').toLowerCase().includes(search.toLowerCase())
-      return matchesStatus && matchesSearch
-    })
-  }, [orders, status, search])
+    const q = search.toLowerCase()
+    return orders.filter(
+      (o) =>
+        (filter === 'todos' || o.status === filter) &&
+        (!q ||
+          o.id.toLowerCase().includes(q) ||
+          o.customer_name?.toLowerCase().includes(q) ||
+          o.customer_email?.toLowerCase().includes(q))
+    )
+  }, [orders, filter, search])
 
-  const totalIngresos = filtered
-    .filter((o) => ['pagado', 'retirado'].includes(o.status))
-    .reduce((sum, o) => sum + o.total, 0)
-
-  if (loading) return <PageLoader label="Cargando órdenes..." />
+  async function handleCancel(order) {
+    if (!confirm(`¿Cancelar el pedido #${shortId(order.id)}?`)) return
+    setBusyId(order.id)
+    try {
+      await api.cancelAdminOrder(token, order.id)
+      toast.success('Pedido cancelado')
+      load()
+    } catch (e) {
+      toast.error(e.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold text-ink-900">Todas las órdenes</h2>
-        <p className="text-sm text-ink-500">
-          Mostrando <span className="font-semibold text-ink-800">{filtered.length}</span> · Ingresos:{' '}
-          <span className="font-semibold text-brand-600">S/. {totalIngresos.toFixed(2)}</span>
-        </p>
-      </div>
+    <div className="mx-auto max-w-6xl px-4 py-10">
+      <h1 className="mb-1 text-3xl font-bold text-ink-900">Administración</h1>
+      <p className="mb-6 text-ink-500">Todos los pedidos de la tienda.</p>
+      <AdminNav />
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <input
-          className="input sm:w-64"
-          placeholder="Buscar por ID o código..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
-          {STATUS_FILTERS.map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => setStatus(value)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                status === value
-                  ? 'bg-brand-600 text-white'
-                  : 'border border-ink-200 bg-white text-ink-500 hover:bg-ink-50'
-              }`}
-            >
+          {FILTERS.map(([value, label]) => (
+            <button key={value} onClick={() => setFilter(value)} className={filter === value ? 'chip-on' : 'chip-off'}>
               {label}
             </button>
           ))}
         </div>
+        <div className="relative sm:w-64">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" aria-hidden="true" />
+          <input
+            className="input !pl-9"
+            placeholder="Buscar cliente o ID"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
-      {filtered.length === 0 ? (
-        <EmptyState icon="🧾" title="No hay órdenes" subtitle="Ajusta los filtros o espera nuevos pedidos." />
+      {loading ? (
+        <PageLoader />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={Receipt} title="No hay pedidos con ese filtro" />
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-ink-50 text-xs uppercase tracking-wide text-ink-400">
-              <tr>
-                <th className="px-4 py-3">ID</th>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3">Total</th>
-                <th className="px-4 py-3">Código QR</th>
-                <th className="px-4 py-3">Caja</th>
-                <th className="px-4 py-3">Fecha</th>
+        <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-400">
+                <th className="px-4 py-3 font-medium">Pedido</th>
+                <th className="px-4 py-3 font-medium">Cliente</th>
+                <th className="px-4 py-3 font-medium">Locker</th>
+                <th className="px-4 py-3 font-medium">Total</th>
+                <th className="px-4 py-3 font-medium">Estado</th>
+                <th className="px-4 py-3 font-medium">Fecha</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-100">
               {filtered.map((o) => (
-                <tr key={o.id} className="hover:bg-ink-50/60">
-                  <td className="px-4 py-3 font-mono text-xs text-ink-500">{o.id.slice(0, 8)}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={o.status} />
+                <tr key={o.id} className="hover:bg-ink-50">
+                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs font-semibold text-ink-700">
+                    #{shortId(o.id)}
                   </td>
-                  <td className="px-4 py-3 font-medium text-ink-700">S/. {o.total.toFixed(2)}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-ink-500">{o.pickup_code || '—'}</td>
-                  <td className="px-4 py-3 text-ink-600">{o.box_number ?? '—'}</td>
-                  <td className="px-4 py-3 text-ink-500">{new Date(o.created_at).toLocaleString()}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-ink-800">{o.customer_name}</p>
+                    <p className="text-xs text-ink-400">{o.customer_email}</p>
+                  </td>
+                  <td className="px-4 py-3 text-ink-600">{o.locker_name}{o.box_number ? ` · Caja ${o.box_number}` : ''}</td>
+                  <td className="px-4 py-3 font-semibold text-ink-900">{money(o.total)}</td>
+                  <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-ink-500">{formatDateTime(o.created_at)}</td>
+                  <td className="px-4 py-3 text-right">
+                    {(o.status === 'pendiente_pago' || o.status === 'pagado') && (
+                      <button
+                        onClick={() => handleCancel(o)}
+                        disabled={busyId === o.id}
+                        className="btn-danger !px-3 !py-1.5 text-xs"
+                      >
+                        {busyId === o.id ? <Spinner className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+                        Cancelar
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -8,6 +8,16 @@ from models import User, Product, Locker, LockerBox
 
 app = create_app()
 
+PRODUCTS = [
+    ("Sándwich de pollo", "Con papas al hilo", "Sándwiches", 12.50, 20),
+    ("Sándwich mixto", "Jamón, queso y palta", "Sándwiches", 9.00, 18),
+    ("Ensalada César", "Porción individual", "Ensaladas", 10.00, 15),
+    ("Ensalada de quinua", "Quinua, palta y tomate", "Ensaladas", 11.00, 12),
+    ("Jugo de naranja", "500 ml", "Bebidas", 5.00, 30),
+    ("Limonada frozen", "500 ml", "Bebidas", 6.00, 25),
+    ("Brownie de chocolate", "Con nueces", "Postres", 7.00, 10),
+]
+
 with app.app_context():
     # Usuario admin
     if not User.query.filter_by(email="admin@malhu.com").first():
@@ -16,6 +26,7 @@ with app.app_context():
         db.session.add(admin)
 
     # Locker de prueba (usa el mismo device_id que vas a poner en el firmware del ESP32)
+    # 6 cajas = 2 filas x 3 columnas del prototipo.
     if not Locker.query.filter_by(device_id="LOCKER-001").first():
         locker = Locker(
             name="Locker Prototipo",
@@ -24,13 +35,16 @@ with app.app_context():
         )
         db.session.add(locker)
         db.session.flush()
-        db.session.add(LockerBox(locker_id=locker.id, box_number=1, status="libre"))
+        for n in range(1, 7):
+            db.session.add(LockerBox(locker_id=locker.id, box_number=n, status="libre"))
 
-    # Un par de productos de prueba
+    # Productos de prueba
     if Product.query.count() == 0:
-        db.session.add(Product(name="Sandwich de pollo", description="Con papas", price=12.50, stock=20))
-        db.session.add(Product(name="Ensalada César", description="Porción individual", price=10.00, stock=15))
-        db.session.add(Product(name="Jugo de naranja", description="500ml", price=5.00, stock=30))
+        for name, description, category, price, stock in PRODUCTS:
+            db.session.add(Product(
+                name=name, description=description, category=category,
+                price=price, stock=stock,
+            ))
 
     db.session.commit()
     print("Datos de prueba creados. Login admin: admin@malhu.com / admin123")
