@@ -1,0 +1,40 @@
+name: movicash
+description: "MoviCash — Tu dinero, a tu ritmo"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.2.1
+  supabase_flutter: ^2.5.6
+  provider: ^6.1.2
+  http: ^1.2.1
+  intl: ^0.19.0
+  flutter_dotenv: ^5.1.0
+  image_picker: ^1.1.2
+  flutter_local_notifications: ^17.2.3
+  timezone: ^0.9.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
+    - assets/icon/
+    - assets/logo/
+    - assets/images/
