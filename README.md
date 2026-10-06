@@ -110,3 +110,17 @@ Foodtech", paleta naranja/food-tech, tipografía Poppins). Se agregaron:
 
 No se modificó el backend (Flask); todo lo anterior consume los mismos
 endpoints ya existentes.
+
+## Imágenes de productos (subida desde el panel admin)
+
+En **Admin → Productos → Nuevo/Editar** ahora puedes subir la foto del producto
+desde tu equipo (JPG, PNG, WEBP o GIF, máx. 5 MB). También sigue funcionando
+pegar una URL.
+
+- Endpoint: `POST /api/admin/upload` (solo admin, `multipart/form-data`, campo `image`)
+  → devuelve `{ "url": "http://.../api/uploads/<archivo>" }`
+- Las imágenes se guardan en `backend/uploads/` y se sirven en `GET /api/uploads/<archivo>`
+- Se valida el contenido real del archivo y se reducen a 1200 px como máximo
+- Variables opcionales en `.env`: `MAX_UPLOAD_MB`, `UPLOAD_FOLDER`,
+  `PUBLIC_BASE_URL` (ponla en producción, ej. `https://api.tudominio.com`)
+- Instala la dependencia nueva: `pip install -r requirements.txt` (Pillow)
