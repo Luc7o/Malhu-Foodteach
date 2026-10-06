@@ -1,9 +1,11 @@
+import os
 import time
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 
 from config import Config
 from extensions import db, jwt, cors
+from images import products_dir
 from services import expire_stale
 
 from routes.auth import auth_bp
@@ -44,6 +46,16 @@ def create_app():
             state["last_sweep"] = now
             expire_stale()
 
+    @app.errorhandler(413)
+    def too_large(_e):
+        mb = app.config["MAX_UPLOAD_MB"]
+        return jsonify({"error": f"El archivo es muy pesado (máximo {mb} MB)"}), 413
+
+    @app.get("/uploads/<path:filename>")
+    def serve_upload(filename):
+        # Imágenes de productos subidas por el admin
+        return send_from_directory(app.config["UPLOAD_FOLDER"], filename, max_age=86400)
+
     @app.get("/api/health")
     def health():
         return jsonify({"status": "ok", "app": "Malhu Foodtech"})
@@ -57,8 +69,10 @@ def create_app():
             "currency": "PEN",
         })
 
+    products_dir(app.config["UPLOAD_FOLDER"])  # crea la carpeta uploads/products si no existe
+
     with app.app_context():
-        db.create_all()
+        db.create_all()  # también crea las tablas nuevas (admin_keys, locker_events)
 
     return app
 

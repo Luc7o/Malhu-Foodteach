@@ -1,10 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
+from flask_jwt_extended import get_jwt_identity
 
 from extensions import db
-from models import Locker, LockerBox, PickupCode
-from utils import admin_required
+from models import AdminKey, Locker, LockerBox, LockerEvent, PickupCode
+from utils import admin_required, qr_data_url
 
 lockers_bp = Blueprint("lockers", __name__, url_prefix="/api")
 
@@ -29,6 +30,27 @@ def _admin_locker_dict(locker):
         box["pickup_expires_at"] = (
             pickup.expires_at.isoformat() + "Z" if pickup else None
         )
+
+    # Llaves digitales de admin que siguen vigentes para este locker
+    keys = (
+        AdminKey.query.filter(
+            AdminKey.locker_id == locker.id,
+            AdminKey.status == "activo",
+            AdminKey.expires_at > datetime.utcnow(),
+        )
+        .order_by(AdminKey.created_at.desc())
+        .all()
+    )
+    data["keys"] = [k.to_dict() for k in keys]
+
+    # Últimos movimientos del locker (accesos, cargas, alertas)
+    events = (
+        LockerEvent.query.filter_by(locker_id=locker.id)
+        .order_by(LockerEvent.created_at.desc())
+        .limit(8)
+        .all()
+    )
+    data["events"] = [e.to_dict() for e in events]
     return data
 
 
@@ -148,3 +170,69 @@ def update_box(box_id):
     box.status = status
     db.session.commit()
     return jsonify(box.to_dict())
+
+
+@lockers_bp.post("/admin/lockers/<locker_id>/keys")
+@admin_required
+def create_admin_key(locker_id):
+    """
+    Crea una llave digital (QR) para abrir UNA caja y cargar productos.
+    Body: {"box_number": 2, "minutes": 10, "single_use": false}
+    Devuelve la llave y su QR (imagen en base64) para mostrarlo frente al lector.
+    """
+    locker = Locker.query.get_or_404(locker_id)
+    data = request.get_json(silent=True) or {}
+
+    try:
+        box_number = int(data.get("box_number"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "box_number es requerido"}), 400
+    box = LockerBox.query.filter_by(locker_id=locker.id, box_number=box_number).first()
+    if not box:
+        return jsonify({"error": "Esa caja no existe en este locker"}), 404
+
+    max_minutes = current_app.config["ADMIN_KEY_MAX_MINUTES"]
+    try:
+        minutes = int(data.get("minutes", current_app.config["ADMIN_KEY_DEFAULT_MINUTES"]))
+    except (TypeError, ValueError):
+        return jsonify({"error": "minutes debe ser un entero"}), 400
+    if not 1 <= minutes <= max_minutes:
+        return jsonify({"error": f"minutes debe estar entre 1 y {max_minutes}"}), 400
+
+    key = AdminKey(
+        locker_id=locker.id,
+        box_id=box.id,
+        created_by=get_jwt_identity(),
+        code=AdminKey.generate_code(),
+        single_use=bool(data.get("single_use", False)),
+        expires_at=datetime.utcnow() + timedelta(minutes=minutes),
+    )
+    db.session.add(key)
+    db.session.commit()
+
+    out = key.to_dict()
+    out["qr_image_base64"] = qr_data_url(key.code)
+    return jsonify(out), 201
+
+
+@lockers_bp.get("/admin/keys/<key_id>/qr")
+@admin_required
+def get_admin_key_qr(key_id):
+    """Vuelve a mostrar el QR de una llave que todavía está vigente."""
+    key = AdminKey.query.get_or_404(key_id)
+    if not key.is_valid():
+        return jsonify({"error": "La llave ya no está activa"}), 410
+    out = key.to_dict()
+    out["qr_image_base64"] = qr_data_url(key.code)
+    return jsonify(out)
+
+
+@lockers_bp.delete("/admin/keys/<key_id>")
+@admin_required
+def revoke_admin_key(key_id):
+    """Revoca una llave antes de que venza (por ejemplo, si se compartió el QR por error)."""
+    key = AdminKey.query.get_or_404(key_id)
+    if key.status == "activo":
+        key.status = "revocado"
+        db.session.commit()
+    return jsonify(key.to_dict())

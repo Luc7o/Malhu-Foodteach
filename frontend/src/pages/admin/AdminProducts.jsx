@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ImagePlus, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { api } from '../../api'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import AdminNav from '../../components/AdminNav'
 import { EmptyState, PageLoader, ProductImage, Spinner } from '../../components/ui'
 import { money } from '../../lib/format'
+
+const MAX_IMAGE_MB = 5
 
 const EMPTY_FORM = { name: '', description: '', category: '', price: '', stock: '', image_url: '', active: true }
 
@@ -15,10 +17,32 @@ function ProductForm({ initial, onCancel, onSaved }) {
   const [form, setForm] = useState(initial || EMPTY_FORM)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef(null)
   const isEdit = Boolean(initial?.id)
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
+  }
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // permite volver a elegir el mismo archivo
+    if (!file) return
+    setError('')
+    if (!file.type.startsWith('image/')) return setError('Elige un archivo de imagen (JPG, PNG, WEBP o GIF)')
+    if (file.size > MAX_IMAGE_MB * 1024 * 1024) return setError(`La imagen pesa más de ${MAX_IMAGE_MB} MB`)
+
+    setUploading(true)
+    try {
+      const { image_url } = await api.uploadProductImage(token, file)
+      set('image_url', image_url)
+      toast.success('Imagen subida. Guarda el producto para aplicarla.')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setUploading(false)
+    }
   }
 
   async function handleSubmit(e) {
@@ -64,15 +88,48 @@ function ProductForm({ initial, onCancel, onSaved }) {
             <label className="label">Descripción</label>
             <textarea className="input" rows={2} value={form.description} onChange={(e) => set('description', e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Categoría</label>
-              <input className="input" value={form.category} onChange={(e) => set('category', e.target.value)} placeholder="Sándwiches" />
+          <div>
+            <label className="label">Categoría</label>
+            <input className="input" value={form.category} onChange={(e) => set('category', e.target.value)} placeholder="Sándwiches" />
+          </div>
+          <div>
+            <label className="label">Imagen</label>
+            <div className="flex items-center gap-3">
+              <ProductImage
+                src={form.image_url}
+                alt="Vista previa"
+                category={form.category}
+                className="h-20 w-20 shrink-0 rounded-xl object-cover"
+              />
+              <div className="flex flex-wrap gap-2">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleFile}
+                />
+                <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} className="btn-secondary !px-3 !py-2 text-xs">
+                  {uploading ? <Spinner className="h-4 w-4" /> : <ImagePlus className="h-4 w-4" aria-hidden="true" />}
+                  {form.image_url ? 'Cambiar imagen' : 'Subir imagen'}
+                </button>
+                {form.image_url && (
+                  <button type="button" onClick={() => set('image_url', '')} disabled={uploading} className="btn-ghost !px-3 !py-2 text-xs">
+                    <Trash2 className="h-4 w-4" aria-hidden="true" /> Quitar
+                  </button>
+                )}
+              </div>
             </div>
-            <div>
-              <label className="label">Imagen (URL)</label>
-              <input className="input" value={form.image_url || ''} onChange={(e) => set('image_url', e.target.value)} placeholder="https://..." />
-            </div>
+            <p className="mt-1.5 text-xs text-ink-400">JPG, PNG, WEBP o GIF · máximo {MAX_IMAGE_MB} MB. Se ajusta sola a 1000 px.</p>
+            <details className="mt-2 text-xs text-ink-500">
+              <summary className="cursor-pointer select-none">O pega un enlace de imagen</summary>
+              <input
+                className="input mt-2"
+                value={form.image_url?.startsWith('/uploads/') ? '' : form.image_url || ''}
+                onChange={(e) => set('image_url', e.target.value)}
+                placeholder="https://..."
+              />
+            </details>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -94,7 +151,7 @@ function ProductForm({ initial, onCancel, onSaved }) {
 
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onCancel} className="btn-secondary">Cancelar</button>
-          <button type="submit" disabled={saving} className="btn-primary">
+          <button type="submit" disabled={saving || uploading} className="btn-primary">
             {saving ? <Spinner className="h-4 w-4" /> : 'Guardar'}
           </button>
         </div>

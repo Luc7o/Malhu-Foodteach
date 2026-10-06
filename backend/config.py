@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
 
 def _origins():
     raw = os.getenv("CORS_ORIGINS", "*").strip()
@@ -47,3 +49,16 @@ class Config:
     DEVICE_ONLINE_SECONDS = int(os.getenv("DEVICE_ONLINE_SECONDS", "90"))
     # Segundos que el firmware debe mantener abierta la cerradura
     DEVICE_OPEN_SECONDS = int(os.getenv("DEVICE_OPEN_SECONDS", "5"))
+
+    # Imágenes de productos subidas por el admin (se guardan en disco, no en la base de datos)
+    UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", os.path.join(BASE_DIR, "uploads"))
+    MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "5"))
+    MAX_CONTENT_LENGTH = MAX_UPLOAD_MB * 1024 * 1024
+
+    # Llave digital del admin para abrir una caja y cargar productos
+    ADMIN_KEY_DEFAULT_MINUTES = int(os.getenv("ADMIN_KEY_DEFAULT_MINUTES", "10"))
+    ADMIN_KEY_MAX_MINUTES = int(os.getenv("ADMIN_KEY_MAX_MINUTES", "60"))
+
+    # Si el ESP32 avisa que la puerta no se abrió, el código del cliente se restaura
+    # solo si fue validado hace menos de estos segundos.
+    RESTORE_WINDOW_SECONDS = int(os.getenv("RESTORE_WINDOW_SECONDS", "180"))

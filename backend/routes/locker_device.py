@@ -1,12 +1,17 @@
 import hmac
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import Blueprint, request, jsonify, current_app
 
 from extensions import db
-from models import Locker, PickupCode
+from models import AdminKey, Locker, LockerEvent, PickupCode
 
 locker_device_bp = Blueprint("locker_device", __name__, url_prefix="/api/locker")
+
+ADMIN_PREFIX = "MLH-ADM-"
+
+# Eventos que el ESP32 puede reportar en POST /api/locker/event
+DEVICE_EVENTS = {"arranque", "puerta_abierta", "puerta_cerrada", "sin_apertura", "puerta_forzada"}
 
 
 def _check_device_key(locker):
@@ -20,6 +25,50 @@ def _check_device_key(locker):
     return hmac.compare_digest(sent, locker.device_key)
 
 
+def _log(locker, kind, box_number=None, detail=None):
+    """Agrega una línea a la bitácora del locker (el commit lo hace quien llama)."""
+    db.session.add(LockerEvent(
+        locker_id=locker.id,
+        kind=kind,
+        box_number=box_number,
+        detail=(detail or "")[:200] or None,
+    ))
+
+
+def _reject(locker, reason, status, code=None):
+    _log(locker, "rechazado", detail=f"{reason} ({str(code)[:30]})" if code else reason)
+    db.session.commit()
+    return jsonify({"valid": False, "reason": reason}), status
+
+
+def _validate_admin_key(locker, code):
+    """Llave digital del admin: abre una caja para cargar productos, sin tocar pedidos."""
+    key = AdminKey.query.filter_by(code=code.upper()).first()
+    if not key:
+        return _reject(locker, "Llave no encontrada", 404, code)
+    if key.locker_id != locker.id:
+        return _reject(locker, "Esta llave no pertenece a este locker", 403, code)
+    if key.status == "revocado":
+        return _reject(locker, "Llave revocada", 410, code)
+    if not key.is_valid():
+        return _reject(locker, "Llave usada o expirada", 410, code)
+
+    key.use_count += 1
+    key.last_used_at = datetime.utcnow()
+    if key.single_use:
+        key.status = "usado"
+    who = key.creator.name if key.creator else "admin"
+    _log(locker, "carga", key.box.box_number, f"Llave de {who}")
+    db.session.commit()
+
+    return jsonify({
+        "valid": True,
+        "mode": "carga",
+        "box_number": key.box.box_number,
+        "open_seconds": current_app.config["DEVICE_OPEN_SECONDS"],
+    })
+
+
 @locker_device_bp.post("/validate")
 def validate_code():
     """
@@ -31,8 +80,12 @@ def validate_code():
       "code": "MLH-A1B2C3D4E5"     # lo que leyó el escáner QR
     }
     Cabecera (si el locker tiene clave): X-Device-Key: <clave>
+
+    Códigos que empiezan con MLH-ADM- son llaves digitales del administrador
+    (respuesta con "mode": "carga"); el resto son códigos de retiro de clientes
+    (respuesta con "mode": "retiro").
     """
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     device_id = data.get("device_id")
     code = data.get("code")
 
@@ -47,33 +100,117 @@ def validate_code():
         return jsonify({"valid": False, "reason": "Clave de dispositivo inválida"}), 401
 
     locker.last_seen = datetime.utcnow()
+    code = str(code).strip()
 
-    pickup = PickupCode.query.filter_by(code=str(code).strip()).first()
+    if code.upper().startswith(ADMIN_PREFIX):
+        return _validate_admin_key(locker, code)
+
+    pickup = PickupCode.query.filter_by(code=code).first()
 
     if not pickup:
-        db.session.commit()
-        return jsonify({"valid": False, "reason": "Código no encontrado"}), 404
+        return _reject(locker, "Código no encontrado", 404, code)
 
     if pickup.box.locker_id != locker.id:
-        db.session.commit()
-        return jsonify({"valid": False, "reason": "Este código no pertenece a este locker"}), 403
+        return _reject(locker, "Este código no pertenece a este locker", 403, code)
 
     if not pickup.is_valid():
-        db.session.commit()
-        return jsonify({"valid": False, "reason": "Código usado o expirado"}), 410
+        return _reject(locker, "Código usado o expirado", 410, code)
 
     # Todo bien: marca como usado, libera la caja y actualiza la orden
     pickup.status = "usado"
     pickup.used_at = datetime.utcnow()
     pickup.box.status = "libre"
     pickup.order.status = "retirado"
+    _log(locker, "retiro", pickup.box.box_number, f"Pedido {pickup.order_id[:8].upper()}")
     db.session.commit()
 
     return jsonify({
         "valid": True,
+        "mode": "retiro",
         "box_number": pickup.box.box_number,
         "open_seconds": current_app.config["DEVICE_OPEN_SECONDS"],
     })
+
+
+def _restore_pickup(locker, code):
+    """
+    Si el ESP32 avisa que la puerta nunca se abrió, devuelve el código al cliente
+    para que no pierda su pedido. Solo si pasó poco tiempo desde que se validó y la
+    caja sigue libre (nadie más la ocupó mientras tanto).
+    """
+    if not code:
+        return False
+    pickup = PickupCode.query.filter_by(code=code).first()
+    if not pickup or pickup.box.locker_id != locker.id:
+        return False
+    if pickup.status != "usado" or not pickup.used_at or pickup.order.status != "retirado":
+        return False
+
+    window = timedelta(seconds=current_app.config["RESTORE_WINDOW_SECONDS"])
+    now = datetime.utcnow()
+    if now - pickup.used_at > window or now >= pickup.expires_at:
+        return False
+    if pickup.box.status != "libre":
+        return False
+
+    # Si el ESP32 ya reportó que la puerta se abrió después de validar, el cliente sí retiró
+    abierta = LockerEvent.query.filter(
+        LockerEvent.locker_id == locker.id,
+        LockerEvent.kind == "puerta_abierta",
+        LockerEvent.box_number == pickup.box.box_number,
+        LockerEvent.created_at >= pickup.used_at,
+    ).first()
+    if abierta:
+        return False
+
+    pickup.status = "activo"
+    pickup.used_at = None
+    pickup.box.status = "ocupado"
+    pickup.order.status = "pagado"
+    return True
+
+
+@locker_device_bp.post("/event")
+def device_event():
+    """
+    El ESP32 reporta lo que pasó físicamente. Queda en la bitácora del locker.
+    Body: {"device_id": "LOCKER-001", "event": "puerta_abierta", "box_number": 1,
+           "code": "MLH-...", "detail": "texto opcional"}
+    event: arranque | puerta_abierta | puerta_cerrada | sin_apertura | puerta_forzada
+    Con "sin_apertura" y el "code" del cliente, el backend le devuelve el código si
+    la puerta nunca se abrió.
+    """
+    data = request.get_json(silent=True) or {}
+    device_id = data.get("device_id")
+    event = data.get("event")
+
+    if not device_id or not event:
+        return jsonify({"ok": False, "reason": "device_id y event son requeridos"}), 400
+    if event not in DEVICE_EVENTS:
+        return jsonify({"ok": False, "reason": "Evento no reconocido"}), 400
+
+    locker = Locker.query.filter_by(device_id=device_id).first()
+    if not locker:
+        return jsonify({"ok": False, "reason": "Locker no reconocido"}), 404
+    if not _check_device_key(locker):
+        return jsonify({"ok": False, "reason": "Clave de dispositivo inválida"}), 401
+
+    try:
+        box_number = int(data["box_number"]) if data.get("box_number") is not None else None
+    except (TypeError, ValueError):
+        box_number = None
+
+    locker.last_seen = datetime.utcnow()
+    _log(locker, event, box_number, data.get("detail"))
+
+    restored = False
+    if event == "sin_apertura":
+        restored = _restore_pickup(locker, str(data.get("code") or "").strip())
+        if restored:
+            _log(locker, "codigo_restaurado", box_number, "La puerta no se abrió; el código sigue activo")
+
+    db.session.commit()
+    return jsonify({"ok": True, "restored": restored})
 
 
 @locker_device_bp.post("/heartbeat")
@@ -83,7 +220,7 @@ def heartbeat():
     administración muestre si el locker está en línea.
     Body: {"device_id": "LOCKER-001"}  ·  Cabecera: X-Device-Key (si aplica)
     """
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     device_id = data.get("device_id")
     if not device_id:
         return jsonify({"ok": False, "reason": "device_id es requerido"}), 400

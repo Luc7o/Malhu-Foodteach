@@ -3,6 +3,7 @@ import {
   CupSoda, Cookie, Salad, Sandwich, UtensilsCrossed, ShoppingBag, Wrench, Loader2,
 } from 'lucide-react'
 import { ICON_GREEN, ICON_WHITE } from '../assets/brand-icon'
+import { assetUrl } from '../api'
 
 /**
  * Logo oficial de MALHÚ. `tone="dark"` usa el ícono verde (para fondos claros,
@@ -96,7 +97,7 @@ export function ProductImage({ src, alt, category, className = '' }) {
       </div>
     )
   }
-  return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} />
+  return <img src={assetUrl(src)} alt={alt} className={className} onError={() => setFailed(true)} />
 }
 
 const LED = {

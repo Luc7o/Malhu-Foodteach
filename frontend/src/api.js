@@ -2,6 +2,16 @@
 // (por ejemplo https://api.tudominio.com/api) al construir el frontend.
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
+// Origen del backend (sin /api). Sirve para armar la URL de las imágenes subidas,
+// que el backend guarda como ruta relativa (/uploads/products/xxxx.jpg).
+export const API_ORIGIN = API_URL.replace(/\/api\/?$/, '')
+
+export function assetUrl(path) {
+  if (!path) return path
+  if (/^(https?:|data:|blob:)/i.test(path)) return path
+  return `${API_ORIGIN}${path.startsWith('/') ? '' : '/'}${path}`
+}
+
 // Nombre del evento global que se dispara cuando el backend responde 401
 // (token vencido o inválido). AuthContext escucha este evento para cerrar
 // sesión automáticamente y redirigir al login.
@@ -15,7 +25,9 @@ const ERROR_MESSAGES = {
 }
 
 async function request(path, { method = 'GET', body, token } = {}) {
-  const headers = { 'Content-Type': 'application/json' }
+  // Con FormData (subida de archivos) el navegador pone solo el Content-Type correcto
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData
+  const headers = isForm ? {} : { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
   let res
@@ -23,7 +35,7 @@ async function request(path, { method = 'GET', body, token } = {}) {
     res = await fetch(`${API_URL}${path}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
     })
   } catch (networkErr) {
     throw new Error('No se pudo conectar con el servidor. Verifica que el backend esté corriendo.')
@@ -57,6 +69,11 @@ export const api = {
     request(`/admin/products/${id}`, { method: 'PUT', body: product, token }),
   deleteProduct: (token, id) =>
     request(`/admin/products/${id}`, { method: 'DELETE', token }),
+  uploadProductImage: (token, file) => {
+    const form = new FormData()
+    form.append('image', file)
+    return request('/admin/products/image', { method: 'POST', body: form, token })
+  },
 
   getLockers: () => request('/lockers'),
   getAdminLockers: (token) => request('/admin/lockers', { token }),
@@ -68,6 +85,13 @@ export const api = {
     request(`/admin/lockers/${id}/rotate-key`, { method: 'POST', token }),
   setBoxStatus: (token, boxId, status) =>
     request(`/admin/boxes/${boxId}`, { method: 'PATCH', body: { status }, token }),
+
+  // Llave digital del admin (QR para abrir una caja y cargar productos)
+  createAdminKey: (token, lockerId, data) =>
+    request(`/admin/lockers/${lockerId}/keys`, { method: 'POST', body: data, token }),
+  getAdminKeyQr: (token, keyId) => request(`/admin/keys/${keyId}/qr`, { token }),
+  revokeAdminKey: (token, keyId) =>
+    request(`/admin/keys/${keyId}`, { method: 'DELETE', token }),
 
   createOrder: (token, items, lockerId) =>
     request('/orders', { method: 'POST', body: { items, locker_id: lockerId }, token }),

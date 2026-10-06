@@ -232,3 +232,76 @@ class PickupCode(db.Model):
 
     def is_valid(self):
         return self.status == "activo" and datetime.utcnow() < self.expires_at
+
+
+class AdminKey(db.Model):
+    """
+    Llave digital (QR) del administrador para abrir una caja y cargar productos.
+    Vence en pocos minutos, se puede revocar y queda registrada con quién la creó.
+    """
+    __tablename__ = "admin_keys"
+
+    id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    locker_id = db.Column(db.String(36), db.ForeignKey("lockers.id"), nullable=False)
+    box_id = db.Column(db.String(36), db.ForeignKey("locker_boxes.id"), nullable=False)
+    created_by = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
+    code = db.Column(db.String(50), unique=True, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="activo")  # activo | usado | revocado
+    single_use = db.Column(db.Boolean, nullable=False, default=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    use_count = db.Column(db.Integer, nullable=False, default=0)
+    last_used_at = db.Column(db.DateTime, nullable=True)
+
+    box = db.relationship("LockerBox")
+    creator = db.relationship("User")
+
+    @staticmethod
+    def generate_code():
+        # El prefijo MLH-ADM- permite al backend distinguirla de un código de cliente (MLH-)
+        return "MLH-ADM-" + secrets.token_hex(5).upper()
+
+    def is_valid(self):
+        return self.status == "activo" and datetime.utcnow() < self.expires_at
+
+    def effective_status(self):
+        if self.status == "activo" and datetime.utcnow() >= self.expires_at:
+            return "expirado"
+        return self.status
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "code": self.code,
+            "locker_id": self.locker_id,
+            "box_id": self.box_id,
+            "box_number": self.box.box_number if self.box else None,
+            "status": self.effective_status(),
+            "single_use": self.single_use,
+            "expires_at": iso(self.expires_at),
+            "created_at": iso(self.created_at),
+            "created_by": self.creator.name if self.creator else None,
+            "use_count": self.use_count,
+            "last_used_at": iso(self.last_used_at),
+        }
+
+
+class LockerEvent(db.Model):
+    """Bitácora de lo que hace cada locker (accesos, cargas, puerta forzada, etc.)."""
+    __tablename__ = "locker_events"
+
+    id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    locker_id = db.Column(db.String(36), db.ForeignKey("lockers.id"), nullable=False, index=True)
+    kind = db.Column(db.String(30), nullable=False)
+    box_number = db.Column(db.Integer, nullable=True)
+    detail = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "kind": self.kind,
+            "box_number": self.box_number,
+            "detail": self.detail,
+            "created_at": iso(self.created_at),
+        }

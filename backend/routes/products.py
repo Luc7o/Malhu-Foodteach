@@ -1,6 +1,7 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 
 from extensions import db
+from images import delete_local_image, save_product_image
 from models import Product
 from utils import admin_required
 
@@ -61,12 +62,27 @@ def create_product():
         category=(data.get("category") or "").strip() or None,
         price=price,
         stock=stock,
-        image_url=data.get("image_url"),
+        image_url=(data.get("image_url") or "").strip() or None,
         active=data.get("active", True),
     )
     db.session.add(product)
     db.session.commit()
     return jsonify(product.to_dict()), 201
+
+
+@products_bp.post("/admin/products/image")
+@admin_required
+def upload_product_image():
+    """
+    Sube la foto de un producto (multipart/form-data, campo "image").
+    Devuelve {"image_url": "/uploads/products/xxxx.jpg"}; esa URL se guarda en el producto
+    al crearlo o editarlo.
+    """
+    try:
+        url = save_product_image(request.files.get("image"), current_app.config["UPLOAD_FOLDER"])
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify({"image_url": url}), 201
 
 
 @products_bp.put("/admin/products/<product_id>")
@@ -82,13 +98,21 @@ def update_product(product_id):
         product.price = price
         product.stock = stock
 
-    for field in ["name", "description", "image_url", "active"]:
+    for field in ["name", "description", "active"]:
         if field in data:
             setattr(product, field, data[field])
     if "category" in data:
         product.category = (data["category"] or "").strip() or None
 
+    old_image = product.image_url
+    if "image_url" in data:
+        product.image_url = (data["image_url"] or "").strip() or None
+
     db.session.commit()
+
+    # Si cambió o se quitó la imagen, borra del disco la anterior (solo si la subimos nosotros)
+    if "image_url" in data and old_image != product.image_url:
+        delete_local_image(old_image, current_app.config["UPLOAD_FOLDER"])
     return jsonify(product.to_dict())
 
 
