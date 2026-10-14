@@ -1,0 +1,37 @@
+// ===== Apertura remota (botón "Abrir" del panel) =====
+// Pega esto en tu locker_malhu_v3.ino. Necesita ArduinoJson (Library Manager).
+// Adapta los 3 nombres marcados con  <-- ADAPTAR  a los que ya usas en tu firmware.
+#include <ArduinoJson.h>
+
+const unsigned long COMANDOS_CADA_MS = 2000;   // consulta cada 2 s
+unsigned long ultimaConsultaComandos = 0;
+
+void consultarComandos() {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  http.begin(String(BACKEND_URL) + "/api/locker/commands");       // <-- ADAPTAR (tu URL base)
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-Device-Key", DEVICE_KEY);                     // <-- ADAPTAR (tu clave)
+  http.setTimeout(3000);
+
+  int code = http.POST(String("{\"device_id\":\"") + DEVICE_ID + "\"}");  // <-- ADAPTAR (tu id)
+  if (code == 200) {
+    StaticJsonDocument<512> doc;
+    if (!deserializeJson(doc, http.getString())) {
+      for (JsonObject cmd : doc["commands"].as<JsonArray>()) {
+        int caja = cmd["box_number"];
+        int seg  = cmd["open_seconds"] | 5;
+        abrirCaja(caja, seg, true);   // <-- usa la MISMA función que ya abre la cerradura con
+                                      //     una llave QR de admin (modo carga)
+      }
+    }
+  }
+  http.end();
+}
+
+// En loop(), junto a lo demás (sin delay bloqueante):
+//   if (millis() - ultimaConsultaComandos >= COMANDOS_CADA_MS) {
+//     ultimaConsultaComandos = millis();
+//     consultarComandos();
+//   }

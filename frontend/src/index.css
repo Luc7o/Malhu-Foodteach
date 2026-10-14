@@ -85,6 +85,14 @@ h1, h2, h3 {
   }
 }
 
+/* Superficie clara con vetas verticales muy suaves (como la mesa de madera de la referencia) */
+.wood {
+  background-color: #fff;
+  background-image:
+    repeating-linear-gradient(90deg, rgb(15 42 29 / 0.03) 0 2px, transparent 2px 46px),
+    repeating-linear-gradient(90deg, rgb(15 42 29 / 0.02) 0 1px, transparent 1px 17px);
+}
+
 /* Puertas del locker: la primera caja libre se abre una vez al cargar la portada */
 @keyframes door-demo {
   0%, 100% { transform: rotateY(0deg); }

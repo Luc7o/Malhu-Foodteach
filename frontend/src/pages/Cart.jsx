@@ -97,7 +97,7 @@ export default function Cart() {
           icon={ShoppingBag}
           title="Tu carrito está vacío"
           subtitle="Agrega algo del menú y aquí verás el resumen de tu pedido."
-          action={<Link to="/" className="btn-primary mt-2">Ver el menú</Link>}
+          action={<Link to="/menu" className="btn-primary mt-2">Ver el menú</Link>}
         />
       </div>
     )

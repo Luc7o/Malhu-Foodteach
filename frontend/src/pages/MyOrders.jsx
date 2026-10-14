@@ -56,7 +56,7 @@ export default function MyOrders() {
           icon={Package}
           title="Aquí no hay pedidos"
           subtitle="Cuando hagas un pedido lo verás en esta lista."
-          action={<Link to="/" className="btn-primary mt-2">Ver el menú</Link>}
+          action={<Link to="/menu" className="btn-primary mt-2">Ver el menú</Link>}
         />
       ) : (
         <ul className="divide-y divide-ink-200 rounded-2xl border border-ink-200 bg-white">

@@ -86,12 +86,9 @@ export const api = {
   setBoxStatus: (token, boxId, status) =>
     request(`/admin/boxes/${boxId}`, { method: 'PATCH', body: { status }, token }),
 
-  // Llave digital del admin (QR para abrir una caja y cargar productos)
-  createAdminKey: (token, lockerId, data) =>
-    request(`/admin/lockers/${lockerId}/keys`, { method: 'POST', body: data, token }),
-  getAdminKeyQr: (token, keyId) => request(`/admin/keys/${keyId}/qr`, { token }),
-  revokeAdminKey: (token, keyId) =>
-    request(`/admin/keys/${keyId}`, { method: 'DELETE', token }),
+  // Botón "Abrir": el ESP32 recoge la orden y abre la caja en modo carga
+  openBox: (token, lockerId, boxNumber) =>
+    request(`/admin/lockers/${lockerId}/boxes/${boxNumber}/open`, { method: 'POST', token }),
 
   createOrder: (token, items, lockerId) =>
     request('/orders', { method: 'POST', body: { items, locker_id: lockerId }, token }),

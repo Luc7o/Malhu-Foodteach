@@ -59,6 +59,9 @@ class Config:
     ADMIN_KEY_DEFAULT_MINUTES = int(os.getenv("ADMIN_KEY_DEFAULT_MINUTES", "10"))
     ADMIN_KEY_MAX_MINUTES = int(os.getenv("ADMIN_KEY_MAX_MINUTES", "60"))
 
+    # Apertura remota con botón: segundos que una orden espera al ESP32 antes de vencer
+    OPEN_COMMAND_TTL_SECONDS = int(os.getenv("OPEN_COMMAND_TTL_SECONDS", "30"))
+
     # Si el ESP32 avisa que la puerta no se abrió, el código del cliente se restaura
     # solo si fue validado hace menos de estos segundos.
     RESTORE_WINDOW_SECONDS = int(os.getenv("RESTORE_WINDOW_SECONDS", "180"))

@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import get_jwt_identity
 
 from extensions import db
-from models import AdminKey, Locker, LockerBox, LockerEvent, PickupCode
+from models import AdminKey, Locker, LockerBox, LockerEvent, OpenCommand, PickupCode
 from utils import admin_required, qr_data_url
 
 lockers_bp = Blueprint("lockers", __name__, url_prefix="/api")
@@ -236,3 +236,38 @@ def revoke_admin_key(key_id):
         key.status = "revocado"
         db.session.commit()
     return jsonify(key.to_dict())
+
+
+@lockers_bp.post("/admin/lockers/<locker_id>/boxes/<int:box_number>/open")
+@admin_required
+def open_box_remote(locker_id, box_number):
+    """
+    Botón "Abrir" del panel: deja una orden para que el ESP32 abra esa caja en modo
+    carga. Si ya hay una orden pendiente para la misma caja se reutiliza (evita dobles
+    clics). Devuelve 202: la puerta se abre cuando el ESP32 recoge la orden.
+    """
+    locker = Locker.query.get_or_404(locker_id)
+    box = LockerBox.query.filter_by(locker_id=locker.id, box_number=box_number).first()
+    if not box:
+        return jsonify({"error": "Esa caja no existe en este locker"}), 404
+    if not locker.is_online():
+        return jsonify({"error": "El locker está sin señal. Revisa el WiFi del ESP32."}), 503
+
+    now = datetime.utcnow()
+    cmd = OpenCommand.query.filter(
+        OpenCommand.box_id == box.id,
+        OpenCommand.status == "pendiente",
+        OpenCommand.expires_at > now,
+    ).first()
+    if not cmd:
+        ttl = current_app.config["OPEN_COMMAND_TTL_SECONDS"]
+        cmd = OpenCommand(
+            locker_id=locker.id,
+            box_id=box.id,
+            created_by=get_jwt_identity(),
+            expires_at=now + timedelta(seconds=ttl),
+        )
+        db.session.add(cmd)
+        db.session.commit()
+
+    return jsonify({"id": cmd.id, "box_number": box.box_number, "status": cmd.status}), 202

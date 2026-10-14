@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, current_app
 
 from extensions import db
-from models import AdminKey, Locker, LockerEvent, PickupCode
+from models import AdminKey, Locker, LockerEvent, OpenCommand, PickupCode
 
 locker_device_bp = Blueprint("locker_device", __name__, url_prefix="/api/locker")
 
@@ -234,3 +234,52 @@ def heartbeat():
     locker.last_seen = datetime.utcnow()
     db.session.commit()
     return jsonify({"ok": True, "server_time": datetime.utcnow().isoformat() + "Z"})
+
+
+@locker_device_bp.post("/commands")
+def device_commands():
+    """
+    El ESP32 consulta cada pocos segundos si el admin pidió abrir alguna caja con el
+    botón del panel. También cuenta como señal de vida (marca el locker en línea).
+    Body: {"device_id": "LOCKER-001"}  ·  Cabecera: X-Device-Key (si aplica)
+    Respuesta: {"commands": [{"id": "...", "action": "open", "box_number": 2,
+                              "mode": "carga", "open_seconds": 5}]}
+    Cada orden se entrega UNA sola vez.
+    """
+    data = request.get_json(silent=True) or {}
+    device_id = data.get("device_id")
+    if not device_id:
+        return jsonify({"commands": [], "reason": "device_id es requerido"}), 400
+
+    locker = Locker.query.filter_by(device_id=device_id).first()
+    if not locker:
+        return jsonify({"commands": [], "reason": "Locker no reconocido"}), 404
+    if not _check_device_key(locker):
+        return jsonify({"commands": [], "reason": "Clave de dispositivo inválida"}), 401
+
+    now = datetime.utcnow()
+    locker.last_seen = now
+
+    pending = (
+        OpenCommand.query.filter_by(locker_id=locker.id, status="pendiente")
+        .order_by(OpenCommand.created_at)
+        .all()
+    )
+    commands = []
+    for cmd in pending:
+        if now >= cmd.expires_at:
+            cmd.status = "expirado"
+            continue
+        cmd.status = "entregado"
+        cmd.delivered_at = now
+        who = cmd.creator.name if cmd.creator else "admin"
+        _log(locker, "carga", cmd.box.box_number, f"Botón Abrir de {who}")
+        commands.append({
+            "id": cmd.id,
+            "action": "open",
+            "box_number": cmd.box.box_number,
+            "mode": "carga",
+            "open_seconds": current_app.config["DEVICE_OPEN_SECONDS"],
+        })
+    db.session.commit()
+    return jsonify({"commands": commands})

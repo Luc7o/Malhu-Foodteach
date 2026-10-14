@@ -286,6 +286,30 @@ class AdminKey(db.Model):
         }
 
 
+class OpenCommand(db.Model):
+    """
+    Orden de apertura remota: el admin pulsa "Abrir" en el panel y el ESP32 la recoge
+    en su siguiente consulta (POST /api/locker/commands). Vence en segundos para que
+    una orden vieja nunca abra una caja de forma inesperada.
+    """
+    __tablename__ = "open_commands"
+
+    id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    locker_id = db.Column(db.String(36), db.ForeignKey("lockers.id"), nullable=False, index=True)
+    box_id = db.Column(db.String(36), db.ForeignKey("locker_boxes.id"), nullable=False)
+    created_by = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
+    status = db.Column(db.String(20), nullable=False, default="pendiente")  # pendiente | entregado | expirado
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    delivered_at = db.Column(db.DateTime, nullable=True)
+
+    box = db.relationship("LockerBox")
+    creator = db.relationship("User")
+
+    def is_pending(self):
+        return self.status == "pendiente" and datetime.utcnow() < self.expires_at
+
+
 class LockerEvent(db.Model):
     """Bitácora de lo que hace cada locker (accesos, cargas, puerta forzada, etc.)."""
     __tablename__ = "locker_events"

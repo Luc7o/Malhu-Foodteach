@@ -8,31 +8,32 @@ export default {
         display: ['"Playfair Display"', 'Figtree', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       colors: {
-        // Verde MALHÚ (#395941): color de marca y de las acciones principales
+        // Paleta verde: #0F2A1D · #375534 · #6B9071 · #AEC3B0 · #E3EED4
+        // brand = color de marca y acciones principales (600 = #375534)
         brand: {
-          50: '#f2f7f4',
-          100: '#e3ede5',
-          200: '#c7dccc',
-          300: '#a1c4aa',
-          400: '#72a77f',
-          500: '#52845f',
-          600: '#395941',
-          700: '#2e4834',
-          800: '#233828',
-          900: '#1b2c20',
+          50: '#F3F8EA',
+          100: '#E3EED4',
+          200: '#CBDCC9',
+          300: '#AEC3B0',
+          400: '#8CAA8F',
+          500: '#6B9071',
+          600: '#375534',
+          700: '#2B4429',
+          800: '#1D3524',
+          900: '#0F2A1D',
         },
-        // Verde oscuro / tierra cálida: superficies, bordes y texto (acompaña el verde de marca)
+        // ink = superficies, bordes y texto, en verdes de la misma paleta
         ink: {
-          50: '#f6f5f2',
-          100: '#eae7e0',
-          200: '#d6d1c5',
-          300: '#b3ac9b',
-          400: '#8c8371',
-          500: '#6b6455',
-          600: '#514c40',
-          700: '#3c382f',
-          800: '#282520',
-          900: '#1a1814',
+          50: '#F3F7EC',
+          100: '#E3EED4',
+          200: '#CFDCC7',
+          300: '#AEC3B0',
+          400: '#7D9582',
+          500: '#566E5A',
+          600: '#425A46',
+          700: '#2E4533',
+          800: '#1B3325',
+          900: '#0F2A1D',
         },
         // LEDs del locker (mismos colores que el prototipo físico)
         led: {
@@ -43,7 +44,7 @@ export default {
         },
       },
       boxShadow: {
-        pop: '0 12px 32px -8px rgb(22 28 36 / 0.28)',
+        pop: '0 12px 32px -8px rgb(15 42 29 / 0.35)',
       },
       keyframes: {
         'slide-in': {
