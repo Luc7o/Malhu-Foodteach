@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
-import { RequireAuth, RequireAdmin } from './components/PrivateRoute'
+import { RequireAuth } from './components/PrivateRoute'
 
 import Home from './pages/Home'
 import Menu from './pages/Menu'
@@ -14,10 +14,6 @@ import Cart from './pages/Cart'
 import MyOrders from './pages/MyOrders'
 import OrderDetail from './pages/OrderDetail'
 import NotFound from './pages/NotFound'
-import AdminDashboard from './pages/admin/AdminDashboard'
-import AdminLockers from './pages/admin/AdminLockers'
-import AdminProducts from './pages/admin/AdminProducts'
-import AdminOrders from './pages/admin/AdminOrders'
 
 export default function App() {
   return (
@@ -35,10 +31,6 @@ export default function App() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/orders" element={<RequireAuth><MyOrders /></RequireAuth>} />
           <Route path="/orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
-          <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
-          <Route path="/admin/lockers" element={<RequireAdmin><AdminLockers /></RequireAdmin>} />
-          <Route path="/admin/products" element={<RequireAdmin><AdminProducts /></RequireAdmin>} />
-          <Route path="/admin/orders" element={<RequireAdmin><AdminOrders /></RequireAdmin>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

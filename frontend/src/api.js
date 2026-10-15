@@ -24,7 +24,7 @@ const ERROR_MESSAGES = {
   500: 'Ocurrió un error en el servidor. Intenta de nuevo.',
 }
 
-async function request(path, { method = 'GET', body, token } = {}) {
+export async function request(path, { method = 'GET', body, token } = {}) {
   // Con FormData (subida de archivos) el navegador pone solo el Content-Type correcto
   const isForm = typeof FormData !== 'undefined' && body instanceof FormData
   const headers = isForm ? {} : { 'Content-Type': 'application/json' }
@@ -62,34 +62,7 @@ export const api = {
     request('/auth/login', { method: 'POST', body: { email, password } }),
 
   getProducts: () => request('/products'),
-  getAdminProducts: (token) => request('/admin/products', { token }),
-  createProduct: (token, product) =>
-    request('/admin/products', { method: 'POST', body: product, token }),
-  updateProduct: (token, id, product) =>
-    request(`/admin/products/${id}`, { method: 'PUT', body: product, token }),
-  deleteProduct: (token, id) =>
-    request(`/admin/products/${id}`, { method: 'DELETE', token }),
-  uploadProductImage: (token, file) => {
-    const form = new FormData()
-    form.append('image', file)
-    return request('/admin/products/image', { method: 'POST', body: form, token })
-  },
-
   getLockers: () => request('/lockers'),
-  getAdminLockers: (token) => request('/admin/lockers', { token }),
-  createLocker: (token, locker) =>
-    request('/admin/lockers', { method: 'POST', body: locker, token }),
-  updateLocker: (token, id, data) =>
-    request(`/admin/lockers/${id}`, { method: 'PUT', body: data, token }),
-  rotateLockerKey: (token, id) =>
-    request(`/admin/lockers/${id}/rotate-key`, { method: 'POST', token }),
-  setBoxStatus: (token, boxId, status) =>
-    request(`/admin/boxes/${boxId}`, { method: 'PATCH', body: { status }, token }),
-
-  // Botón "Abrir": el ESP32 recoge la orden y abre la caja en modo carga
-  openBox: (token, lockerId, boxNumber) =>
-    request(`/admin/lockers/${lockerId}/boxes/${boxNumber}/open`, { method: 'POST', token }),
-
   createOrder: (token, items, lockerId) =>
     request('/orders', { method: 'POST', body: { items, locker_id: lockerId }, token }),
   payOrder: (token, orderId, method) =>
@@ -108,9 +81,4 @@ export const api = {
   getOrder: (token, orderId) => request(`/orders/${orderId}`, { token }),
   getOrderQr: (token, orderId) => request(`/orders/${orderId}/qr`, { token }),
   getMyOrders: (token) => request('/orders/my', { token }),
-
-  getAdminOrders: (token) => request('/admin/orders', { token }),
-  cancelAdminOrder: (token, orderId) =>
-    request(`/admin/orders/${orderId}/cancel`, { method: 'POST', token }),
-  getAdminStats: (token) => request('/admin/stats', { token }),
 }

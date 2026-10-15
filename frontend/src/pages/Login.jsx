@@ -95,7 +95,7 @@ export default function Login() {
         </button>
       </form>
 
-      {import.meta.env.DEV && (
+      {IS_ADMIN_APP && import.meta.env.DEV && (
         <p className="mt-4 rounded-lg bg-ink-100 px-3 py-2 text-xs text-ink-500">
           Solo en desarrollo: admin@malhu.com / admin123 (después de correr seed.py)
         </p>

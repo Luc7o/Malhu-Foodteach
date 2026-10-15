@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Boxes, Receipt, ShoppingBag, TrendingUp, Wrench } from 'lucide-react'
-import { api } from '../../api'
+import { adminApi as api } from '../../adminApi'
 import { useAuth } from '../../context/AuthContext'
 import AdminNav from '../../components/AdminNav'
 import { ADMIN_BASE } from '../../lib/appMode'

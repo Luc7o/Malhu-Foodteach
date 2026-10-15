@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ImagePlus, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
-import { api } from '../../api'
+import { adminApi as api } from '../../adminApi'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import AdminNav from '../../components/AdminNav'
