@@ -23,6 +23,7 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const data = await api.login(email, password)
     persist(data)
+    return data.user
   }
 
   async function register(name, email, password) {
