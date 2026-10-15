@@ -31,6 +31,8 @@ with app.app_context():
         existing = {c["name"] for c in inspector.get_columns(table)}
         if column in existing:
             continue
+        if db.engine.dialect.name == "postgresql":
+            ddl = ddl.replace("DATETIME", "TIMESTAMP")  # en Postgres se llama TIMESTAMP
         db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
         print(f"+ {table}.{column}")
         added += 1

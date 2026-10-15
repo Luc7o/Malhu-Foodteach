@@ -2,11 +2,18 @@
 Script de datos de prueba. Ejecutar una sola vez después de crear las tablas:
     python seed.py
 """
+import os
+
 from app import create_app
 from extensions import db
 from models import User, Product, Locker, LockerBox
 
 app = create_app()
+
+# En producción define ADMIN_EMAIL y ADMIN_PASSWORD al correr el seed
+# (si no, se usan los datos de prueba de desarrollo).
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@malhu.com").strip().lower()
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 PRODUCTS = [
     ("Sándwich de pollo", "Con papas al hilo", "Sándwiches", 12.50, 20),
@@ -20,9 +27,9 @@ PRODUCTS = [
 
 with app.app_context():
     # Usuario admin
-    if not User.query.filter_by(email="admin@malhu.com").first():
-        admin = User(name="Admin Malhu", email="admin@malhu.com", role="admin")
-        admin.set_password("admin123")
+    if not User.query.filter_by(email=ADMIN_EMAIL).first():
+        admin = User(name="Admin Malhu", email=ADMIN_EMAIL, role="admin")
+        admin.set_password(ADMIN_PASSWORD)
         db.session.add(admin)
 
     # Locker de prueba (usa el mismo device_id que vas a poner en el firmware del ESP32)
@@ -47,4 +54,6 @@ with app.app_context():
             ))
 
     db.session.commit()
-    print("Datos de prueba creados. Login admin: admin@malhu.com / admin123")
+    print(f"Datos creados. Login admin: {ADMIN_EMAIL}")
+    if ADMIN_PASSWORD == "admin123":
+        print("AVISO: estás usando la clave de prueba 'admin123'. Cámbiala antes de salir a producción.")

@@ -7,6 +7,23 @@ load_dotenv()
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
+def _database_uri():
+    """
+    Lee DATABASE_URL. Railway, Supabase y similares entregan "postgres://..." o
+    "postgresql://..."; SQLAlchemy necesita indicar el driver (psycopg2).
+    MySQL (mysql+pymysql://...) y SQLite siguen funcionando igual en tu equipo.
+    """
+    url = os.getenv(
+        "DATABASE_URL",
+        "mysql+pymysql://root:password@localhost/malhu_foodtech",
+    ).strip()
+    if url.startswith("postgres://"):
+        url = "postgresql+psycopg2://" + url[len("postgres://"):]
+    elif url.startswith("postgresql://"):
+        url = "postgresql+psycopg2://" + url[len("postgresql://"):]
+    return url
+
+
 def _origins():
     raw = os.getenv("CORS_ORIGINS", "*").strip()
     if raw == "*":
@@ -15,12 +32,13 @@ def _origins():
 
 
 class Config:
-    # Ejemplo de DATABASE_URL: mysql+pymysql://usuario:password@localhost/malhu_foodtech
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL",
-        "mysql+pymysql://root:password@localhost/malhu_foodtech"
-    )
+    # Ejemplos de DATABASE_URL:
+    #   Postgres (Railway/Supabase): postgresql://usuario:password@host:5432/railway
+    #   MySQL local:                 mysql+pymysql://usuario:password@localhost/malhu_foodtech
+    SQLALCHEMY_DATABASE_URI = _database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Evita errores por conexiones que el servidor de base de datos ya cerró
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 280}
 
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "cambia-esto-en-produccion")
     # Por defecto flask-jwt-extended expira el token en 15 minutos, lo cual
@@ -93,3 +111,12 @@ class Config:
     ALERT_THREAD = os.getenv("ALERT_THREAD", "1") == "1"
     NOTIFICATIONS_SYNC = os.getenv("NOTIFICATIONS_SYNC", "0") == "1"  # solo para pruebas
     STORE_NAME = os.getenv("STORE_NAME", "MALHÚ")
+
+
+# En producción no se permite arrancar con la clave JWT de ejemplo.
+if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PRODUCTION") == "1":
+    if Config.JWT_SECRET_KEY in ("", "cambia-esto-en-produccion"):
+        raise RuntimeError(
+            "Define JWT_SECRET_KEY en las variables de entorno antes de desplegar "
+            "(por ejemplo: python -c \"import secrets; print(secrets.token_hex(32))\")."
+        )

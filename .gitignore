@@ -1,0 +1,27 @@
+# Secretos y entorno
+.env
+.env.*
+!.env.example
+!.env.izipay.example
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Node
+node_modules/
+dist/
+
+# Datos generados en ejecución (en producción viven en el Volume de Railway)
+backend/uploads/
+*.db
+*.sqlite3
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

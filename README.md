@@ -1,4 +1,6 @@
-# Malhu Foodtech — Prototipo web (Flask + React + MySQL)
+# Malhu Foodtech — Prototipo web (Flask + React + MySQL/Postgres)
+
+> Para publicarlo en internet (Vercel + Railway) mira **[DEPLOY.md](DEPLOY.md)**.
 
 Backend probado end-to-end: registro/login, CRUD de productos, creación de
 locker con cajas, creación de orden, pago simulado, generación de QR,
