@@ -4,6 +4,7 @@ import { House, LogOut, Menu, ShoppingBag, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { Logo } from './ui'
+import { ADMIN_URL } from '../lib/appMode'
 
 const LINKS = [
   ['/nosotros', 'Nosotros'],
@@ -77,6 +78,9 @@ export default function Navbar() {
             <NavItem key={to} to={to}>{label}</NavItem>
           ))}
           {user && <NavItem to="/orders">Mis pedidos</NavItem>}
+          {user?.role === 'admin' && (ADMIN_URL
+            ? <a href={ADMIN_URL} className="rounded-lg px-2.5 py-2 text-xs font-bold uppercase tracking-wider text-brand-200 hover:bg-white/10 hover:text-white">Administración</a>
+            : <NavItem to="/admin">Administración</NavItem>)}
         </div>
 
         <div className="ml-auto hidden items-center gap-2 lg:flex">
@@ -122,6 +126,12 @@ export default function Navbar() {
               <NavItem key={to} to={to} onClick={close}>{label}</NavItem>
             ))}
             {user && <NavItem to="/orders" onClick={close}>Mis pedidos</NavItem>}
+<<<<<<< HEAD
+=======
+            {user?.role === 'admin' && (ADMIN_URL
+              ? <a href={ADMIN_URL} onClick={close} className="rounded-lg px-2.5 py-2 text-xs font-bold uppercase tracking-wider text-brand-200 hover:bg-white/10 hover:text-white">Administración</a>
+              : <NavItem to="/admin" onClick={close}>Administración</NavItem>)}
+>>>>>>> 9ae626677809b8ec381dd3d0b2868524f2cebe98
             <div className="mt-2 border-t border-white/10 pt-3">
               {user ? (
                 <div className="flex items-center justify-between">
