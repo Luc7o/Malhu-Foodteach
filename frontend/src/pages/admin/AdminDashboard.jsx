@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Boxes, Receipt, ShoppingBag, TrendingUp, Wrench } from 'lucide-react'
-import { api } from '../../api'
+import { adminApi as api } from '../../adminApi'
 import { useAuth } from '../../context/AuthContext'
 import AdminNav from '../../components/AdminNav'
+import { ADMIN_BASE } from '../../lib/appMode'
 import { PageLoader } from '../../components/ui'
 import { money } from '../../lib/format'
 
@@ -129,7 +130,7 @@ export default function AdminDashboard() {
                 <p className="text-sm text-ink-500">Estado de todos los lockers</p>
               </div>
             </div>
-            <Link to="/admin/lockers" className="btn-secondary">Ver lockers</Link>
+            <Link to={`${ADMIN_BASE}/lockers`} className="btn-secondary">Ver lockers</Link>
           </div>
         </div>
       )}

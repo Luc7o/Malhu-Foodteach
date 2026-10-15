@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { Spinner } from '../components/ui'
 import AuthShell from '../components/AuthShell'
+import { IS_ADMIN_APP } from '../lib/appMode'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -12,7 +13,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
+  const { login, logout } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
 
@@ -21,7 +22,11 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      await login(email, password)
+      const user = await login(email, password)
+      if (IS_ADMIN_APP && user?.role !== 'admin') {
+        logout()
+        throw new Error('Esta cuenta no tiene acceso al panel de administración.')
+      }
       toast.success('Sesión iniciada')
       navigate('/')
     } catch (err) {
@@ -33,15 +38,17 @@ export default function Login() {
 
   return (
     <AuthShell
-      title="Inicia sesión"
-      subtitle="Entra para ver y pagar tus pedidos."
+      title={IS_ADMIN_APP ? 'Panel de administración' : 'Inicia sesión'}
+      subtitle={IS_ADMIN_APP ? 'Acceso solo para administradores.' : 'Entra para ver y pagar tus pedidos.'}
       footer={
+        IS_ADMIN_APP ? null : (
         <>
           ¿Aún no tienes cuenta?{' '}
           <Link to="/register" className="font-semibold text-brand-700 hover:underline">
             Crea una
           </Link>
         </>
+        )
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -88,7 +95,7 @@ export default function Login() {
         </button>
       </form>
 
-      {import.meta.env.DEV && (
+      {IS_ADMIN_APP && import.meta.env.DEV && (
         <p className="mt-4 rounded-lg bg-ink-100 px-3 py-2 text-xs text-ink-500">
           Solo en desarrollo: admin@malhu.com / admin123 (después de correr seed.py)
         </p>
