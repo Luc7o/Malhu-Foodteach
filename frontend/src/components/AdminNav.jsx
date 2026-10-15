@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom'
+import { ADMIN_BASE } from '../lib/appMode'
 
 const TABS = [
-  ['/admin', 'Resumen', true],
-  ['/admin/lockers', 'Lockers', false],
-  ['/admin/orders', 'Pedidos', false],
-  ['/admin/products', 'Productos', false],
+  [ADMIN_BASE || '/', 'Resumen', true],
+  [`${ADMIN_BASE}/lockers`, 'Lockers', false],
+  [`${ADMIN_BASE}/orders`, 'Pedidos', false],
+  [`${ADMIN_BASE}/products`, 'Productos', false],
 ]
 
 export default function AdminNav() {

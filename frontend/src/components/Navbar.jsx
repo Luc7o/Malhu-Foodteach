@@ -4,6 +4,7 @@ import { House, LogOut, Menu, ShoppingBag, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { Logo } from './ui'
+import { ADMIN_URL } from '../lib/appMode'
 
 const LINKS = [
   ['/nosotros', 'Nosotros'],
