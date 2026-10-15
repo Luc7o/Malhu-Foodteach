@@ -7,6 +7,7 @@ import { api } from '../api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { PageLoader, Spinner, StatusBadge } from '../components/ui'
+import IzipayForm from '../components/IzipayForm'
 import { formatDateTime, formatDuration, money, shortId, useCountdown } from '../lib/format'
 
 const METHODS = [
@@ -76,9 +77,10 @@ function Summary({ order }) {
   )
 }
 
-function PaymentPanel({ order, remaining, config, onPay, onCancel, paying, canceling }) {
+function PaymentPanel({ order, remaining, config, token, onPay, onPaidOrder, onCancel, paying, canceling }) {
   const [method, setMethod] = useState('tarjeta')
   const simulated = config?.payment_provider === 'simulated'
+  const izipay = config?.payment_provider === 'izipay'
   return (
     <section className="panel p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -91,45 +93,67 @@ function PaymentPanel({ order, remaining, config, onPay, onCancel, paying, cance
         )}
       </div>
 
-      <fieldset className="mt-5">
-        <legend className="label">Método de pago</legend>
-        <div className="grid grid-cols-3 gap-2">
-          {METHODS.map(([value, label, Icon]) => (
-            <label
-              key={value}
-              className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-3 py-3 text-sm font-medium transition-colors ${
-                method === value ? 'border-ink-900 bg-ink-50 text-ink-900' : 'border-ink-200 text-ink-600 hover:border-ink-300'
-              }`}
-            >
-              <input
-                type="radio"
-                name="method"
-                value={value}
-                checked={method === value}
-                onChange={() => setMethod(value)}
-                className="sr-only"
-              />
-              <Icon className="h-5 w-5" aria-hidden="true" />
-              {label}
-            </label>
-          ))}
+      {!config && (
+        <div className="flex items-center gap-2 py-6 text-sm text-ink-500">
+          <Spinner className="h-4 w-4" /> Cargando...
         </div>
-      </fieldset>
+      )}
+
+      {izipay && (
+        <div className="mt-5">
+          <p className="mb-3 text-sm text-ink-600">
+            Total a pagar: <span className="font-bold text-ink-900">{money(order.total)}</span>
+          </p>
+          <IzipayForm token={token} orderId={order.id} onPaid={onPaidOrder} />
+          <div className="mt-5">
+            <button onClick={onCancel} disabled={canceling} className="btn-ghost">
+              {canceling ? <Spinner className="h-4 w-4" /> : 'Cancelar pedido'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {simulated && (
+        <>
+        <fieldset className="mt-5">
+          <legend className="label">Método de pago</legend>
+          <div className="grid grid-cols-3 gap-2">
+            {METHODS.map(([value, label, Icon]) => (
+              <label
+                key={value}
+                className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-3 py-3 text-sm font-medium transition-colors ${
+                  method === value ? 'border-ink-900 bg-ink-50 text-ink-900' : 'border-ink-200 text-ink-600 hover:border-ink-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="method"
+                  value={value}
+                  checked={method === value}
+                  onChange={() => setMethod(value)}
+                  className="sr-only"
+                />
+                <Icon className="h-5 w-5" aria-hidden="true" />
+                {label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
         <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
           Pago de prueba: no se cobra dinero real.
         </p>
-      )}
 
-      <div className="mt-6 flex flex-wrap gap-3">
-        <button onClick={() => onPay(method)} disabled={paying || canceling} className="btn-primary !px-6 !py-3">
-          {paying ? <Spinner className="h-4 w-4" /> : `Pagar ${money(order.total)}`}
-        </button>
-        <button onClick={onCancel} disabled={paying || canceling} className="btn-ghost">
-          {canceling ? <Spinner className="h-4 w-4" /> : 'Cancelar pedido'}
-        </button>
-      </div>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button onClick={() => onPay(method)} disabled={paying || canceling} className="btn-primary !px-6 !py-3">
+            {paying ? <Spinner className="h-4 w-4" /> : `Pagar ${money(order.total)}`}
+          </button>
+          <button onClick={onCancel} disabled={paying || canceling} className="btn-ghost">
+            {canceling ? <Spinner className="h-4 w-4" /> : 'Cancelar pedido'}
+          </button>
+        </div>
+        </>
+      )}
     </section>
   )
 }
@@ -275,6 +299,12 @@ export default function OrderDetail() {
     }
   }
 
+  function handlePaidOrder(paid) {
+    setOrder(paid)
+    api.getOrderQr(token, id).then(setQr).catch(() => {})
+    toast.success('Pago confirmado. Aquí está tu código QR.')
+  }
+
   async function handleCancel() {
     setCanceling(true)
     try {
@@ -316,7 +346,9 @@ export default function OrderDetail() {
               order={order}
               remaining={remaining}
               config={config}
+              token={token}
               onPay={handlePay}
+              onPaidOrder={handlePaidOrder}
               onCancel={handleCancel}
               paying={paying}
               canceling={canceling}

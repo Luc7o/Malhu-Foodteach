@@ -9,6 +9,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from extensions import db
 from models import Order, OrderItem, Product, Locker, LockerBox, PickupCode
 from payments import get_provider, PaymentError
+from services import FulfillmentError, fulfill_paid_order
 
 orders_bp = Blueprint("orders", __name__, url_prefix="/api/orders")
 
@@ -111,31 +112,21 @@ def pay_order(order_id):
         return jsonify({"error": "No hay casilleros libres en ese locker por ahora"}), 409
 
     try:
-        provider = get_provider(current_app.config["PAYMENT_PROVIDER"])
+        provider = get_provider(current_app.config["PAYMENT_PROVIDER"], current_app.config)
         payment = provider.charge(order, method)
     except PaymentError as e:
         return jsonify({"error": str(e)}), 400
 
-    for item in order.items:
-        item.product.stock -= item.quantity
-
-    free_box.status = "ocupado"
-    order.status = "pagado"
-    order.paid_at = datetime.utcnow()
-    order.payment_method = payment["method"]
-    order.payment_ref = payment["ref"]
-
-    expiration = datetime.utcnow() + timedelta(
-        hours=current_app.config["PICKUP_CODE_EXPIRATION_HOURS"]
-    )
-    pickup = PickupCode(
-        order_id=order.id,
-        box_id=free_box.id,
-        code=PickupCode.generate_code(),
-        expires_at=expiration,
-    )
-    db.session.add(pickup)
+    try:
+        fulfill_paid_order(order, payment["method"], payment["ref"])
+    except FulfillmentError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 409
     db.session.commit()
+
+    from notifications import check_alerts, notify_order_paid
+    notify_order_paid(order)
+    check_alerts()
 
     return jsonify(order.to_dict())
 

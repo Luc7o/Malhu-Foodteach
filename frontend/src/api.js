@@ -94,6 +94,15 @@ export const api = {
     request('/orders', { method: 'POST', body: { items, locker_id: lockerId }, token }),
   payOrder: (token, orderId, method) =>
     request(`/orders/${orderId}/pay`, { method: 'POST', body: { method }, token }),
+  // Izipay: formToken para el formulario y confirmación firmada del pago
+  izipayFormToken: (token, orderId) =>
+    request(`/orders/${orderId}/izipay/form-token`, { method: 'POST', token }),
+  izipayValidate: (token, orderId, krAnswer, krHash) =>
+    request(`/orders/${orderId}/izipay/validate`, {
+      method: 'POST',
+      body: { kr_answer: krAnswer, kr_hash: krHash },
+      token,
+    }),
   cancelOrder: (token, orderId) =>
     request(`/orders/${orderId}/cancel`, { method: 'POST', token }),
   getOrder: (token, orderId) => request(`/orders/${orderId}`, { token }),

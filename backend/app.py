@@ -14,6 +14,8 @@ from routes.lockers import lockers_bp
 from routes.orders import orders_bp
 from routes.locker_device import locker_device_bp
 from routes.admin import admin_bp
+from routes.izipay import izipay_bp
+from notifications import start_alert_thread
 
 SWEEP_EVERY_SECONDS = 15
 
@@ -32,6 +34,7 @@ def create_app():
     app.register_blueprint(orders_bp)
     app.register_blueprint(locker_device_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(izipay_bp)
 
     state = {"last_sweep": 0.0}
 
@@ -74,6 +77,7 @@ def create_app():
     with app.app_context():
         db.create_all()  # también crea las tablas nuevas (admin_keys, locker_events)
 
+    start_alert_thread(app)
     return app
 
 

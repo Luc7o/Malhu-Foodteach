@@ -65,3 +65,31 @@ class Config:
     # Si el ESP32 avisa que la puerta no se abrió, el código del cliente se restaura
     # solo si fue validado hace menos de estos segundos.
     RESTORE_WINDOW_SECONDS = int(os.getenv("RESTORE_WINDOW_SECONDS", "180"))
+
+    # ---------- Izipay (PAYMENT_PROVIDER=izipay) ----------
+    # Credenciales API REST del Back Office Vendedor (modo TEST o PRODUCCIÓN).
+    IZIPAY_USERNAME = os.getenv("IZIPAY_USERNAME", "")      # identificador de tienda
+    IZIPAY_PASSWORD = os.getenv("IZIPAY_PASSWORD", "")      # clave de test/producción (también valida la IPN)
+    IZIPAY_PUBLIC_KEY = os.getenv("IZIPAY_PUBLIC_KEY", "")  # clave pública
+    IZIPAY_HMAC_KEY = os.getenv("IZIPAY_HMAC_KEY", "")      # clave HMAC-SHA-256 (valida el pago desde el navegador)
+    IZIPAY_API_URL = os.getenv("IZIPAY_API_URL", "https://api.micuentaweb.pe")
+    IZIPAY_STATIC_URL = os.getenv("IZIPAY_STATIC_URL", "https://static.micuentaweb.pe")
+    # Opcional: URL pública de la IPN (https://tu-dominio/api/izipay/ipn). Si la dejas vacía,
+    # configúrala en el Back Office: Configuración > Reglas de notificación.
+    IZIPAY_IPN_URL = os.getenv("IZIPAY_IPN_URL", "")
+
+    # ---------- Avisos por correo (SMTP) ----------
+    MAIL_SERVER = os.getenv("MAIL_SERVER", "")              # vacío = no se envían correos
+    MAIL_PORT = int(os.getenv("MAIL_PORT", "587"))
+    MAIL_USE_SSL = os.getenv("MAIL_USE_SSL", "0") == "1"    # puerto 465
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME", "")
+    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
+    MAIL_FROM = os.getenv("MAIL_FROM", "") or os.getenv("MAIL_USERNAME", "")
+    # Correos que reciben las alertas del administrador (separados por coma).
+    # Si está vacío se usa el correo de los usuarios con rol admin.
+    ADMIN_ALERT_EMAILS = [e.strip() for e in os.getenv("ADMIN_ALERT_EMAILS", "").split(",") if e.strip()]
+    LOW_STOCK_THRESHOLD = int(os.getenv("LOW_STOCK_THRESHOLD", "3"))
+    ALERT_CHECK_SECONDS = int(os.getenv("ALERT_CHECK_SECONDS", "60"))
+    ALERT_THREAD = os.getenv("ALERT_THREAD", "1") == "1"
+    NOTIFICATIONS_SYNC = os.getenv("NOTIFICATIONS_SYNC", "0") == "1"  # solo para pruebas
+    STORE_NAME = os.getenv("STORE_NAME", "MALHÚ")

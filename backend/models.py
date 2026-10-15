@@ -310,6 +310,17 @@ class OpenCommand(db.Model):
         return self.status == "pendiente" and datetime.utcnow() < self.expires_at
 
 
+class AlertState(db.Model):
+    """
+    Recuerda qué alertas ya se enviaron (locker sin señal, producto por agotarse) para no
+    repetirlas cada minuto. Se borra la fila cuando el problema se resuelve.
+    """
+    __tablename__ = "alert_states"
+
+    key = db.Column(db.String(120), primary_key=True)
+    fired_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class LockerEvent(db.Model):
     """Bitácora de lo que hace cada locker (accesos, cargas, puerta forzada, etc.)."""
     __tablename__ = "locker_events"
