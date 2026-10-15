@@ -69,6 +69,19 @@ def _handle_ack(device_id, payload):
     cmd = OpenCommand.query.get(cmd_id)
     if not locker or not cmd or cmd.locker_id != locker.id:
         return
+    if data.get("ok") is False:
+        # El ESP32 rechazó la orden (está ocupado o esa caja no está cableada)
+        if cmd.status in ("pendiente", "enviado"):
+            cmd.status = "expirado"
+            db.session.add(LockerEvent(
+                locker_id=locker.id,
+                kind="rechazado",
+                box_number=cmd.box.box_number,
+                detail=f"Botón Abrir no ejecutado: {str(data.get('reason') or 'ocupado')}"[:200],
+            ))
+        locker.last_seen = datetime.utcnow()
+        db.session.commit()
+        return
     if cmd.status in ("pendiente", "enviado"):
         cmd.status = "entregado"
         cmd.delivered_at = datetime.utcnow()
