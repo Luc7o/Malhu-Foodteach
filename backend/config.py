@@ -84,6 +84,16 @@ class Config:
     # solo si fue validado hace menos de estos segundos.
     RESTORE_WINDOW_SECONDS = int(os.getenv("RESTORE_WINDOW_SECONDS", "180"))
 
+    # ---------- MQTT (órdenes en tiempo real al ESP32) ----------
+    # Con MQTT_HOST vacío no se usa MQTT y el ESP32 sigue consultando por HTTP.
+    MQTT_HOST = os.getenv("MQTT_HOST", "").strip()            # ej. abc123.s1.eu.hivemq.cloud
+    MQTT_PORT = int(os.getenv("MQTT_PORT", "8883"))           # 8883 = TLS
+    MQTT_USERNAME = os.getenv("MQTT_USERNAME", "")
+    MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
+    MQTT_TLS = os.getenv("MQTT_TLS", "1") == "1"
+    MQTT_TOPIC_PREFIX = os.getenv("MQTT_TOPIC_PREFIX", "malhu").strip("/")
+    MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "malhu-backend")
+
     # ---------- Izipay (PAYMENT_PROVIDER=izipay) ----------
     # Credenciales API REST del Back Office Vendedor (modo TEST o PRODUCCIÓN).
     IZIPAY_USERNAME = os.getenv("IZIPAY_USERNAME", "")      # identificador de tienda

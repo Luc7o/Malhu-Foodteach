@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import get_jwt_identity
 
+import mqtt_bridge
 from extensions import db
 from models import AdminKey, Locker, LockerBox, LockerEvent, OpenCommand, PickupCode
 from utils import admin_required, qr_data_url
@@ -256,7 +257,7 @@ def open_box_remote(locker_id, box_number):
     now = datetime.utcnow()
     cmd = OpenCommand.query.filter(
         OpenCommand.box_id == box.id,
-        OpenCommand.status == "pendiente",
+        OpenCommand.status.in_(("pendiente", "enviado")),
         OpenCommand.expires_at > now,
     ).first()
     if not cmd:
@@ -269,5 +270,24 @@ def open_box_remote(locker_id, box_number):
         )
         db.session.add(cmd)
         db.session.commit()
+
+        # Con MQTT la orden viaja al instante. Se marca "enviado" ANTES de publicar:
+        # así la consulta HTTP (/api/locker/commands) no la entrega por segunda vez y
+        # la confirmación del ESP32 (ack), que puede llegar en milisegundos, no se pisa.
+        # Si el broker no está disponible vuelve a "pendiente" y el ESP32 la recoge por
+        # HTTP como antes.
+        if mqtt_bridge.is_connected():
+            cmd.status = "enviado"
+            db.session.commit()
+            sent = mqtt_bridge.publish_open(current_app, locker.device_id, {
+                "id": cmd.id,
+                "action": "open",
+                "box_number": box.box_number,
+                "mode": "carga",
+                "open_seconds": current_app.config["DEVICE_OPEN_SECONDS"],
+            })
+            if not sent:
+                cmd.status = "pendiente"
+                db.session.commit()
 
     return jsonify({"id": cmd.id, "box_number": box.box_number, "status": cmd.status}), 202

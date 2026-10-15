@@ -16,6 +16,7 @@ from routes.locker_device import locker_device_bp
 from routes.admin import admin_bp
 from routes.izipay import izipay_bp
 from notifications import start_alert_thread
+from mqtt_bridge import init_mqtt
 
 SWEEP_EVERY_SECONDS = 15
 
@@ -78,6 +79,7 @@ def create_app():
         db.create_all()  # también crea las tablas nuevas (admin_keys, locker_events)
 
     start_alert_thread(app)
+    init_mqtt(app)  # no hace nada si MQTT_HOST está vacío
     return app
 
 
