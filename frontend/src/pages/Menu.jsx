@@ -14,6 +14,7 @@ const norm = (t) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').t
 export default function Menu() {
   const [params, setParams] = useSearchParams()
   const [products, setProducts] = useState([])
+  const [categoryList, setCategoryList] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const { addItem } = useCart()
@@ -35,11 +36,13 @@ export default function Menu() {
 
   useEffect(() => {
     api.getProducts().then(setProducts).catch((e) => setError(e.message)).finally(() => setLoading(false))
+    api.getCategories().then((list) => setCategoryList(list.map((c) => c.name))).catch(() => {})
   }, [])
 
+  // Las categorías salen en el orden que definió el administrador
   const categories = useMemo(
-    () => [...new Set(products.map((p) => p.category).filter(Boolean))].sort(),
-    [products]
+    () => categoryList ?? [...new Set(products.map((p) => p.category).filter(Boolean))].sort(),
+    [categoryList, products]
   )
 
   const visible = useMemo(() => {
@@ -47,7 +50,7 @@ export default function Menu() {
     let list = products.filter(
       (p) =>
         (category === 'todas' || p.category === category) &&
-        (!onlyAvailable || p.stock > 0) &&
+        (!onlyAvailable || !p.sold_out) &&
         (!q || norm(p.name).includes(q) || norm(p.description).includes(q) || norm(p.category).includes(q))
     )
     if (sort === 'precio_asc') list = [...list].sort((a, b) => a.price - b.price)

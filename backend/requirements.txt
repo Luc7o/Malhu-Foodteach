@@ -10,3 +10,4 @@ requests>=2.31
 psycopg2-binary>=2.9.10
 gunicorn>=22.0
 paho-mqtt>=2.0
+pyotp>=2.9

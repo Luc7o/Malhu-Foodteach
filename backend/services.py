@@ -73,7 +73,7 @@ def fulfill_paid_order(order, method, ref):
     products = []
     for item in order.items:
         product = Product.query.filter_by(id=item.product_id).with_for_update().first()
-        if not product or not product.active or product.stock < item.quantity:
+        if not product or not product.active or product.sold_out or product.stock < item.quantity:
             name = product.name if product else "un producto"
             raise FulfillmentError(f"Ya no hay stock suficiente de {name}")
         products.append((product, item.quantity))

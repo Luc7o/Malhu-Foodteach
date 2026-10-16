@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Minus, Plus } from 'lucide-react'
+import { Minus, Plus, Star } from 'lucide-react'
 import { ProductImage } from './ui'
 import { money } from '../lib/format'
 
@@ -18,7 +18,7 @@ export function ProductCardSkeleton() {
 
 export function ProductCard({ product, onAdd }) {
   const [qty, setQty] = useState(1)
-  const outOfStock = product.stock === 0
+  const outOfStock = product.sold_out ?? product.stock === 0
   const lowStock = product.stock > 0 && product.stock <= 5
 
   return (
@@ -30,6 +30,11 @@ export function ProductCard({ product, onAdd }) {
           category={product.category}
           className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
         />
+        {product.featured && (
+          <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-md bg-brand-600 px-2 py-1 text-xs font-semibold text-white">
+            <Star className="h-3 w-3" fill="currentColor" aria-hidden="true" /> Destacado
+          </span>
+        )}
         {(outOfStock || lowStock) && (
           <span
             className={`absolute left-2.5 top-2.5 rounded-md px-2 py-1 text-xs font-semibold ${

@@ -60,6 +60,12 @@ class Config:
     # Orígenes permitidos por CORS. "*" en desarrollo; en producción, la URL del frontend.
     CORS_ORIGINS = _origins()
 
+    # Seguridad del inicio de sesión: tras N fallos seguidos se bloquea ese correo un rato
+    LOGIN_MAX_ATTEMPTS = int(os.getenv("LOGIN_MAX_ATTEMPTS", "5"))
+    LOGIN_LOCK_MINUTES = int(os.getenv("LOGIN_LOCK_MINUTES", "15"))
+    # Nombre que aparece en la app autenticadora (Google Authenticator, Authy...)
+    TOTP_ISSUER = os.getenv("TOTP_ISSUER", "MALHÚ Admin")
+
     # Zona horaria para agrupar las ventas por día en el dashboard (Perú = UTC-5)
     TZ_OFFSET_HOURS = int(os.getenv("TZ_OFFSET_HOURS", "-5"))
 

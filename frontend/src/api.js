@@ -1,6 +1,6 @@
 // En desarrollo apunta al backend local. En producción define VITE_API_URL
 // (por ejemplo https://api.tudominio.com/api) al construir el frontend.
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 // Origen del backend (sin /api). Sirve para armar la URL de las imágenes subidas,
 // que el backend guarda como ruta relativa (/uploads/products/xxxx.jpg).
@@ -58,10 +58,12 @@ export const api = {
 
   register: (name, email, password) =>
     request('/auth/register', { method: 'POST', body: { name, email, password } }),
-  login: (email, password) =>
-    request('/auth/login', { method: 'POST', body: { email, password } }),
+  // `otp` solo se usa en el panel de administración (verificación en dos pasos)
+  login: (email, password, otp) =>
+    request('/auth/login', { method: 'POST', body: otp ? { email, password, otp } : { email, password } }),
 
   getProducts: () => request('/products'),
+  getCategories: () => request('/categories'),
   getLockers: () => request('/lockers'),
   createOrder: (token, items, lockerId) =>
     request('/orders', { method: 'POST', body: { items, locker_id: lockerId }, token }),

@@ -133,21 +133,23 @@ function CateringBand() {
 
 export default function Home() {
   const [products, setProducts] = useState([])
+  const [categoryList, setCategoryList] = useState(null)
   const [locker, setLocker] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
     api.getProducts().then(setProducts).catch(() => {})
+    api.getCategories().then((list) => setCategoryList(list.map((c) => c.name))).catch(() => {})
     api.getLockers().then((l) => setLocker(l[0] || null)).catch(() => {})
   }, [])
 
   const tiles = useMemo(() => {
-    const names = [...new Set(products.map((p) => p.category).filter(Boolean))].sort()
+    const names = categoryList ?? [...new Set(products.map((p) => p.category).filter(Boolean))].sort()
     return names.map((name) => {
       const inCat = products.filter((p) => p.category === name)
       return { name, product: inCat.find((p) => p.image_url) || inCat[0] }
     })
-  }, [products])
+  }, [products, categoryList])
 
   return (
     <div>
