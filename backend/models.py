@@ -26,6 +26,12 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="cliente")  # cliente | admin
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # Cuenta desactivada por un administrador: no puede iniciar sesión ni usar su token
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    last_login_at = db.Column(db.DateTime, nullable=True)
+    # Verificación en dos pasos (TOTP) para administradores
+    totp_secret = db.Column(db.String(64), nullable=True)
+    totp_enabled = db.Column(db.Boolean, nullable=False, default=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -42,30 +48,84 @@ class User(db.Model):
         }
 
 
+class Category(db.Model):
+    __tablename__ = "categories"
+
+    id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    name = db.Column(db.String(60), nullable=False)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    products = db.relationship("Product", back_populates="category_ref", lazy=True)
+
+    def to_dict(self, counts=False):
+        data = {"id": self.id, "name": self.name, "sort_order": self.sort_order}
+        if counts:
+            data["product_count"] = len(self.products)
+            data["published_count"] = len([p for p in self.products if p.status == "publicado"])
+        return data
+
+
+PRODUCT_STATUSES = ("publicado", "borrador", "archivado")
+
+
 class Product(db.Model):
     __tablename__ = "products"
 
     id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
     name = db.Column(db.String(150), nullable=False)
     description = db.Column(db.Text, nullable=True)
+    # Texto legado: se mantiene igual al nombre de la categoría para no romper nada.
+    # La fuente de verdad es category_id.
     category = db.Column(db.String(60), nullable=True)
+    category_id = db.Column(db.String(36), db.ForeignKey("categories.id"), nullable=True, index=True)
     price = db.Column(db.Numeric(10, 2), nullable=False)
     stock = db.Column(db.Integer, nullable=False, default=0)
     image_url = db.Column(db.String(500), nullable=True)
+    # publicado = visible en el menú | borrador = aún no publicado | archivado = retirado
+    status = db.Column(db.String(12), nullable=False, default="publicado")
+    # Espejo de status == "publicado". Toda la tienda sigue filtrando por este campo.
     active = db.Column(db.Boolean, default=True)
+    featured = db.Column(db.Boolean, nullable=False, default=False)
+    # Agotado a mano (aunque haya unidades en stock)
+    sold_out = db.Column(db.Boolean, nullable=False, default=False)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    def to_dict(self):
-        return {
+    category_ref = db.relationship("Category", back_populates="products")
+
+    def set_status(self, status):
+        self.status = status
+        self.active = status == "publicado"
+
+    def category_name(self):
+        return self.category_ref.name if self.category_ref else (self.category or None)
+
+    def is_out_of_stock(self):
+        return bool(self.sold_out) or self.stock <= 0
+
+    def to_dict(self, admin=False):
+        data = {
             "id": self.id,
             "name": self.name,
             "description": self.description,
-            "category": self.category,
+            "category": self.category_name(),
+            "category_id": self.category_id,
             "price": float(self.price),
-            "stock": self.stock,
+            # En la tienda un producto agotado a mano se ve con stock 0
+            "stock": self.stock if admin or not self.sold_out else 0,
             "image_url": self.image_url,
             "active": self.active,
+            "status": self.status or ("publicado" if self.active else "archivado"),
+            "featured": bool(self.featured),
+            "sold_out": self.is_out_of_stock(),
+            "sort_order": self.sort_order or 0,
         }
+        if admin:
+            threshold = current_app.config.get("LOW_STOCK_THRESHOLD", 3)
+            data["sold_out_manual"] = bool(self.sold_out)
+            data["low_stock"] = 0 < self.stock <= threshold
+        return data
 
 
 class Locker(db.Model):
@@ -187,8 +247,10 @@ class Order(db.Model):
             data["used_at"] = iso(self.pickup_code.used_at)
             data["box_number"] = self.pickup_code.box.box_number if self.pickup_code.box else None
         if admin:
+            data["customer_id"] = self.user_id
             data["customer_name"] = self.user.name if self.user else None
             data["customer_email"] = self.user.email if self.user else None
+            data["payment_ref"] = self.payment_ref
         return data
 
 
@@ -340,3 +402,16 @@ class LockerEvent(db.Model):
             "detail": self.detail,
             "created_at": iso(self.created_at),
         }
+
+
+class LoginAttempt(db.Model):
+    """
+    Intentos fallidos de inicio de sesión por correo (exista o no la cuenta, para no
+    revelar qué correos están registrados). Tras varios fallos seguidos se bloquea un rato.
+    """
+    __tablename__ = "login_attempts"
+
+    key = db.Column(db.String(160), primary_key=True)
+    count = db.Column(db.Integer, nullable=False, default=0)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)

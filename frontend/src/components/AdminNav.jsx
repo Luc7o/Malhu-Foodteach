@@ -3,9 +3,11 @@ import { ADMIN_BASE } from '../lib/appMode'
 
 const TABS = [
   [ADMIN_BASE || '/', 'Resumen', true],
-  [`${ADMIN_BASE}/lockers`, 'Lockers', false],
   [`${ADMIN_BASE}/orders`, 'Pedidos', false],
   [`${ADMIN_BASE}/products`, 'Productos', false],
+  [`${ADMIN_BASE}/categories`, 'Categorías', false],
+  [`${ADMIN_BASE}/customers`, 'Clientes', false],
+  [`${ADMIN_BASE}/lockers`, 'Lockers', false],
 ]
 
 export default function AdminNav() {

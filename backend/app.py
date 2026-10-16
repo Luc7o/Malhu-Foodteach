@@ -6,6 +6,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from config import Config
 from extensions import db, jwt, cors
 from images import products_dir
+from models import User
 from services import expire_stale
 
 from routes.auth import auth_bp
@@ -14,6 +15,7 @@ from routes.lockers import lockers_bp
 from routes.orders import orders_bp
 from routes.locker_device import locker_device_bp
 from routes.admin import admin_bp
+from routes.categories import categories_bp
 from routes.izipay import izipay_bp
 from notifications import start_alert_thread
 from mqtt_bridge import init_mqtt
@@ -35,7 +37,18 @@ def create_app():
     app.register_blueprint(orders_bp)
     app.register_blueprint(locker_device_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(categories_bp)
     app.register_blueprint(izipay_bp)
+
+    @jwt.token_in_blocklist_loader
+    def account_disabled(_header, payload):
+        # Un token deja de servir apenas el admin desactiva esa cuenta
+        user = db.session.get(User, payload.get("sub"))
+        return bool(user and not user.active)
+
+    @jwt.revoked_token_loader
+    def account_disabled_response(_header, _payload):
+        return jsonify({"error": "Tu cuenta fue desactivada. Contacta al administrador."}), 401
 
     state = {"last_sweep": 0.0}
 
