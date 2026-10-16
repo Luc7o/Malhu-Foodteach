@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Minus, Plus } from 'lucide-react'
+import { Minus, Plus, Star } from 'lucide-react'
 import { ProductImage } from './ui'
 import { money } from '../lib/format'
 
@@ -18,7 +18,7 @@ export function ProductCardSkeleton() {
 
 export function ProductCard({ product, onAdd }) {
   const [qty, setQty] = useState(1)
-  const outOfStock = product.stock === 0
+  const outOfStock = product.sold_out ?? product.stock === 0
   const lowStock = product.stock > 0 && product.stock <= 5
 
   return (
@@ -30,6 +30,11 @@ export function ProductCard({ product, onAdd }) {
           category={product.category}
           className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
         />
+        {product.featured && (
+          <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-md bg-brand-600 px-2 py-1 text-xs font-semibold text-white">
+            <Star className="h-3 w-3" fill="currentColor" aria-hidden="true" /> Destacado
+          </span>
+        )}
         {(outOfStock || lowStock) && (
           <span
             className={`absolute left-2.5 top-2.5 rounded-md px-2 py-1 text-xs font-semibold ${
@@ -45,6 +50,18 @@ export function ProductCard({ product, onAdd }) {
         <h3 className="text-base font-semibold text-ink-900">{product.name}</h3>
         {product.description && (
           <p className="line-clamp-2 flex-1 text-sm text-ink-500">{product.description}</p>
+        )}
+        {product.health_tags?.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-0.5">
+            {product.health_tags.slice(0, 2).map((t) => (
+              <span key={t.id} className="rounded-md bg-brand-50 px-1.5 py-0.5 text-[11px] font-medium text-brand-700">{t.name}</span>
+            ))}
+            {product.health_tags.length > 2 && (
+              <span className="rounded-md bg-ink-100 px-1.5 py-0.5 text-[11px] font-medium text-ink-500" title={product.health_tags.slice(2).map((t) => t.name).join(', ')}>
+                +{product.health_tags.length - 2}
+              </span>
+            )}
+          </div>
         )}
         <p className="pt-1 font-display text-xl font-bold text-ink-900">{money(product.price)}</p>
 

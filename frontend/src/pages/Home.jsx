@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { MessageCircle, QrCode, ShoppingBag, Smartphone } from 'lucide-react'
+import { Heart, MessageCircle, QrCode, ShoppingBag, Smartphone } from 'lucide-react'
 import { api } from '../api'
 import { LockerBay, ProductImage } from '../components/ui'
 
@@ -90,6 +90,30 @@ function CategoriesSection({ tiles, onPick }) {
   )
 }
 
+function HealthSection({ tags, onPick }) {
+  if (tags.length === 0) return null
+  return (
+    <section className="bg-brand-50 py-12">
+      <div className="mx-auto max-w-6xl px-4 text-center">
+        <p className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-brand-700">
+          <Heart className="h-3.5 w-3.5" aria-hidden="true" /> Bienestar
+        </p>
+        <h2 className="text-2xl font-bold text-ink-900 md:text-3xl">Alimentos para cuidar tu salud</h2>
+        <p className="mx-auto mt-2 max-w-xl text-sm text-ink-500">
+          Elige lo que quieres cuidar y te mostramos los desayunos y productos que van con eso.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2.5">
+          {tags.map((name) => (
+            <button key={name} type="button" onClick={() => onPick(name)} className="chip-off !px-4 !py-2 hover:!border-brand-500 hover:!text-brand-700">
+              {name}
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function HowItWorks() {
   return (
     <section className="bg-brand-100">
@@ -133,26 +157,31 @@ function CateringBand() {
 
 export default function Home() {
   const [products, setProducts] = useState([])
+  const [categoryList, setCategoryList] = useState(null)
+  const [healthTags, setHealthTags] = useState([])
   const [locker, setLocker] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
     api.getProducts().then(setProducts).catch(() => {})
+    api.getCategories().then((list) => setCategoryList(list.map((c) => c.name))).catch(() => {})
+    api.getHealthTags().then((list) => setHealthTags(list.map((t) => t.name))).catch(() => {})
     api.getLockers().then((l) => setLocker(l[0] || null)).catch(() => {})
   }, [])
 
   const tiles = useMemo(() => {
-    const names = [...new Set(products.map((p) => p.category).filter(Boolean))].sort()
+    const names = categoryList ?? [...new Set(products.map((p) => p.category).filter(Boolean))].sort()
     return names.map((name) => {
       const inCat = products.filter((p) => p.category === name)
       return { name, product: inCat.find((p) => p.image_url) || inCat[0] }
     })
-  }, [products])
+  }, [products, categoryList])
 
   return (
     <div>
       <Hero locker={locker} />
       <CategoriesSection tiles={tiles} onPick={(name) => navigate(`/menu?categoria=${encodeURIComponent(name)}`)} />
+      <HealthSection tags={healthTags} onPick={(name) => navigate(`/menu?salud=${encodeURIComponent(name)}`)} />
       <HowItWorks />
       <CateringBand />
     </div>
