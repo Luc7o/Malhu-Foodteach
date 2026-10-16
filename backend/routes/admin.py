@@ -428,12 +428,13 @@ def export_products():
     products = Product.query.order_by(Product.name).all()
     rows = [
         [p.name, p.category_name() or "", f"{float(p.price):.2f}", p.stock, p.status,
-         "Sí" if p.featured else "No", "Sí" if p.is_out_of_stock() else "No"]
+         "Sí" if p.featured else "No", "Sí" if p.is_out_of_stock() else "No",
+         "; ".join(t.name for t in p.sorted_health_tags())]
         for p in products
     ]
     return csv_response(
         f"productos-{_stamp()}.csv",
-        ["Nombre", "Categoría", "Precio (S/.)", "Stock", "Estado", "Destacado", "Agotado"],
+        ["Nombre", "Categoría", "Precio (S/.)", "Stock", "Estado", "Destacado", "Agotado", "Etiquetas de salud"],
         rows,
     )
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  AlertTriangle, ArrowDown, ArrowUp, Download, ImagePlus, Pencil, Plus, Search, Star, Trash2,
+  AlertTriangle, ArrowDown, ArrowUp, Download, Heart, ImagePlus, Pencil, Plus, Search, Star, Trash2,
 } from 'lucide-react'
 import { adminApi as api } from '../../adminApi'
 import { useAuth } from '../../context/AuthContext'
@@ -17,8 +17,10 @@ const MAX_IMAGE_MB = 5
 
 const EMPTY_FORM = {
   name: '', description: '', category_id: '', price: '', stock: '', image_url: '',
-  status: 'publicado', featured: false, sold_out: false,
+  status: 'publicado', featured: false, sold_out: false, health_tag_ids: [],
 }
+
+const MAX_TAGS = 6
 
 const STATUS_OPTIONS = [
   ['publicado', 'Publicado', 'Se ve en el menú de la tienda'],
@@ -26,12 +28,22 @@ const STATUS_OPTIONS = [
   ['archivado', 'Archivado', 'Retirado del menú; se conserva el historial'],
 ]
 
-function ProductForm({ initial, categories, onCancel, onSaved, onCategoryCreated }) {
+function ProductForm({ initial, categories, healthTags, onCancel, onSaved, onCategoryCreated, onHealthTagCreated }) {
   const { token } = useAuth()
   const toast = useToast()
   const [form, setForm] = useState(
-    initial ? { ...EMPTY_FORM, ...initial, category_id: initial.category_id || '', sold_out: initial.sold_out_manual } : EMPTY_FORM
+    initial
+      ? {
+          ...EMPTY_FORM,
+          ...initial,
+          category_id: initial.category_id || '',
+          sold_out: initial.sold_out_manual,
+          health_tag_ids: (initial.health_tags || []).map((t) => t.id),
+        }
+      : EMPTY_FORM
   )
+  const [newTag, setNewTag] = useState(null) // null = oculto, texto = escribiendo
+  const [creatingTag, setCreatingTag] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -45,6 +57,31 @@ function ProductForm({ initial, categories, onCancel, onSaved, onCategoryCreated
   }
 
   const categoryName = categories.find((c) => c.id === form.category_id)?.name
+
+  function toggleTag(id) {
+    setForm((f) => ({
+      ...f,
+      health_tag_ids: f.health_tag_ids.includes(id) ? f.health_tag_ids.filter((x) => x !== id) : [...f.health_tag_ids, id],
+    }))
+  }
+
+  async function handleCreateTag() {
+    const name = (newTag || '').trim()
+    if (!name) return
+    setCreatingTag(true)
+    setError('')
+    try {
+      const tag = await api.createHealthTag(token, name)
+      onHealthTagCreated(tag)
+      if (form.health_tag_ids.length < MAX_TAGS) setForm((f) => ({ ...f, health_tag_ids: [...f.health_tag_ids, tag.id] }))
+      setNewTag(null)
+      toast.success(`Etiqueta «${tag.name}» creada`)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setCreatingTag(false)
+    }
+  }
 
   async function handleFile(e) {
     const file = e.target.files?.[0]
@@ -104,6 +141,7 @@ function ProductForm({ initial, categories, onCancel, onSaved, onCategoryCreated
       status: form.status,
       featured: form.featured,
       sold_out: form.sold_out,
+      health_tag_ids: form.health_tag_ids,
     }
     try {
       const saved = isEdit
@@ -170,6 +208,58 @@ function ProductForm({ initial, categories, onCancel, onSaved, onCategoryCreated
               <button type="button" onClick={() => setNewCategory(null)} className="btn-ghost shrink-0">Cancelar</button>
             </div>
           )}
+        </div>
+
+        <div>
+          <div className="mb-1.5 flex items-baseline justify-between">
+            <label className="label !mb-0">Etiquetas de salud <span className="font-normal text-ink-400">(opcional)</span></label>
+            <span className="text-xs text-ink-400">{form.health_tag_ids.length}/{MAX_TAGS}</span>
+          </div>
+          {healthTags.length === 0 && newTag === null ? (
+            <p className="text-xs text-ink-400">Aún no hay etiquetas de salud.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Etiquetas de salud">
+              {healthTags.map((t) => {
+                const on = form.health_tag_ids.includes(t.id)
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    aria-pressed={on}
+                    disabled={!on && form.health_tag_ids.length >= MAX_TAGS}
+                    onClick={() => toggleTag(t.id)}
+                    className={`${on ? 'chip-on' : 'chip-off'} !px-3 !py-1 !text-xs disabled:opacity-40`}
+                  >
+                    {t.name}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          {newTag === null ? (
+            <button type="button" onClick={() => setNewTag('')} className="mt-1.5 text-xs font-semibold text-brand-600 hover:underline">
+              + Crear una etiqueta nueva
+            </button>
+          ) : (
+            <div className="mt-2 flex gap-2">
+              <input
+                className="input"
+                autoFocus
+                placeholder="Nombre de la etiqueta"
+                value={newTag}
+                maxLength={60}
+                onChange={(e) => setNewTag(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); handleCreateTag() }
+                }}
+              />
+              <button type="button" onClick={handleCreateTag} disabled={creatingTag || !newTag.trim()} className="btn-secondary shrink-0">
+                {creatingTag ? <Spinner className="h-4 w-4" /> : 'Crear'}
+              </button>
+              <button type="button" onClick={() => setNewTag(null)} className="btn-ghost shrink-0">Cancelar</button>
+            </div>
+          )}
+          <p className="mt-1.5 text-xs text-ink-400">No etiquetes embutidos ni productos con mucha azúcar, sal o grasa.</p>
         </div>
 
         <div>
@@ -278,9 +368,11 @@ export default function AdminProducts() {
   const [params, setParams] = useSearchParams()
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
+  const [healthTags, setHealthTags] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('todas')
+  const [tagFilter, setTagFilter] = useState('todas')
   const [editing, setEditing] = useState(null) // null = cerrado, {} = nuevo, objeto = editar
   const [busyId, setBusyId] = useState(null)
   const [exporting, setExporting] = useState(false)
@@ -297,8 +389,8 @@ export default function AdminProducts() {
 
   function load() {
     setLoading(true)
-    Promise.all([api.getAdminProducts(token), api.getAdminCategories(token)])
-      .then(([prods, cats]) => { setProducts(prods); setCategories(cats) })
+    Promise.all([api.getAdminProducts(token), api.getAdminCategories(token), api.getAdminHealthTags(token)])
+      .then(([prods, cats, tags]) => { setProducts(prods); setCategories(cats); setHealthTags(tags) })
       .catch((e) => toast.error(e.message))
       .finally(() => setLoading(false))
   }
@@ -316,11 +408,12 @@ export default function AdminProducts() {
       (p) =>
         MATCHERS[filter](p) &&
         (category === 'todas' || (category === 'sin' ? !p.category_id : p.category_id === category)) &&
+        (tagFilter === 'todas' || (tagFilter === 'sin' ? p.health_tags.length === 0 : p.health_tags.some((t) => t.id === tagFilter))) &&
         (p.name.toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q))
     )
-  }, [products, filter, category, search])
+  }, [products, filter, category, tagFilter, search])
 
-  const canReorder = filter === 'todos' && category === 'todas' && !search
+  const canReorder = filter === 'todos' && category === 'todas' && tagFilter === 'todas' && !search
 
   function handleSaved(saved) {
     setProducts((prev) => {
@@ -429,6 +522,13 @@ export default function AdminProducts() {
           {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           <option value="sin">Sin categoría</option>
         </select>
+        {healthTags.length > 0 && (
+          <select className="input sm:w-52" aria-label="Filtrar por etiqueta de salud" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+            <option value="todas">Todas las etiquetas</option>
+            {healthTags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            <option value="sin">Sin etiquetas</option>
+          </select>
+        )}
         <div className="flex gap-2 sm:ml-auto">
           <button onClick={handleExport} disabled={exporting} className="btn-secondary">
             {exporting ? <Spinner className="h-4 w-4" /> : <Download className="h-4 w-4" aria-hidden="true" />} Exportar
@@ -464,6 +564,12 @@ export default function AdminProducts() {
                     <span className="font-display font-bold text-ink-900">{money(p.price)}</span>
                     <span className={`text-xs ${p.stock === 0 ? 'font-semibold text-red-600' : 'text-ink-500'}`}>Stock: {p.stock}</span>
                   </div>
+                  {p.health_tags.length > 0 && (
+                    <p className="mt-1 flex items-center gap-1 truncate text-[11px] text-brand-700" title={p.health_tags.map((t) => t.name).join(', ')}>
+                      <Heart className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      <span className="truncate">{p.health_tags.map((t) => t.name).join(' · ')}</span>
+                    </p>
+                  )}
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {p.featured && <Tag tone="star"><Star className="h-3 w-3" aria-hidden="true" /> Destacado</Tag>}
                     {p.status === 'borrador' && <Tag tone="draft">Borrador</Tag>}
@@ -533,9 +639,11 @@ export default function AdminProducts() {
         <ProductForm
           initial={editing.id ? editing : null}
           categories={categories}
+          healthTags={healthTags}
           onCancel={() => setEditing(null)}
           onSaved={handleSaved}
           onCategoryCreated={(cat) => setCategories((prev) => [...prev, cat])}
+          onHealthTagCreated={(tag) => setHealthTags((prev) => [...prev, tag])}
         />
       )}
     </div>

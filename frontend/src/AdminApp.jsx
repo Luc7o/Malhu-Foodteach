@@ -11,6 +11,7 @@ import AdminProducts from './pages/admin/AdminProducts'
 import AdminCategories from './pages/admin/AdminCategories'
 import AdminOrders from './pages/admin/AdminOrders'
 import AdminCustomers from './pages/admin/AdminCustomers'
+import AdminHealthTags from './pages/admin/AdminHealthTags'
 import AdminSecurity from './pages/admin/AdminSecurity'
 
 function AdminHeader() {
@@ -65,6 +66,7 @@ export default function AdminApp() {
             <Route path="/orders" element={<RequireAdmin><AdminOrders /></RequireAdmin>} />
             <Route path="/products" element={<RequireAdmin><AdminProducts /></RequireAdmin>} />
             <Route path="/categories" element={<RequireAdmin><AdminCategories /></RequireAdmin>} />
+            <Route path="/health-tags" element={<RequireAdmin><AdminHealthTags /></RequireAdmin>} />
             <Route path="/customers" element={<RequireAdmin><AdminCustomers /></RequireAdmin>} />
             <Route path="/lockers" element={<RequireAdmin><AdminLockers /></RequireAdmin>} />
             <Route path="/security" element={<RequireAdmin><AdminSecurity /></RequireAdmin>} />

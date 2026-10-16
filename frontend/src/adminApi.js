@@ -69,6 +69,17 @@ export const adminApi = {
   reorderCategories: (token, ids) =>
     request('/admin/categories/reorder', { method: 'POST', body: { ids }, token }),
 
+  // ---------- etiquetas de salud
+  getAdminHealthTags: (token) => request('/admin/health-tags', { token }),
+  createHealthTag: (token, name) =>
+    request('/admin/health-tags', { method: 'POST', body: { name }, token }),
+  updateHealthTag: (token, id, name) =>
+    request(`/admin/health-tags/${id}`, { method: 'PUT', body: { name }, token }),
+  deleteHealthTag: (token, id) =>
+    request(`/admin/health-tags/${id}`, { method: 'DELETE', token }),
+  reorderHealthTags: (token, ids) =>
+    request('/admin/health-tags/reorder', { method: 'POST', body: { ids }, token }),
+
   // ---------- pedidos
   getAdminOrders: (token, params) => request(`/admin/orders${buildQuery(params)}`, { token }),
   cancelAdminOrder: (token, orderId) =>

@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 from extensions import db
 from images import delete_local_image, save_product_image
-from models import Category, Product, PRODUCT_STATUSES
+from models import Category, HealthTag, MAX_HEALTH_TAGS_PER_PRODUCT, Product, PRODUCT_STATUSES
 from utils import admin_required
 
 products_bp = Blueprint("products", __name__, url_prefix="/api")
@@ -49,6 +50,25 @@ def _resolve_category(data):
     return cat, None
 
 
+def _resolve_tags(data):
+    """
+    Devuelve (lista_de_etiquetas_o_None, error). None significa "no se envió health_tag_ids":
+    el producto conserva las que tiene.
+    """
+    ids = data.get("health_tag_ids")
+    if ids is None:
+        return None, None
+    if not isinstance(ids, list):
+        return None, "health_tag_ids debe ser una lista"
+    ids = list(dict.fromkeys(ids))
+    if len(ids) > MAX_HEALTH_TAGS_PER_PRODUCT:
+        return None, f"Un producto puede tener hasta {MAX_HEALTH_TAGS_PER_PRODUCT} etiquetas de salud"
+    tags = HealthTag.query.filter(HealthTag.id.in_(ids)).all() if ids else []
+    if len(tags) != len(ids):
+        return None, "Alguna etiqueta de salud no existe"
+    return tags, None
+
+
 def _requested_status(data):
     """status explícito, o el booleano 'active' de versiones anteriores."""
     if "status" in data:
@@ -63,9 +83,13 @@ def _order_by():
     return (Product.featured.desc(), Product.sort_order, Product.name)
 
 
+def _with_relations(query):
+    return query.options(selectinload(Product.category_ref), selectinload(Product.health_tags))
+
+
 @products_bp.get("/products")
 def list_products():
-    products = Product.query.filter_by(active=True).order_by(*_order_by()).all()
+    products = _with_relations(Product.query.filter_by(active=True)).order_by(*_order_by()).all()
     return jsonify([p.to_dict() for p in products])
 
 
@@ -73,7 +97,7 @@ def list_products():
 @admin_required
 def list_all_products():
     """Incluye borradores y archivados, para el panel de administración."""
-    products = Product.query.order_by(*_order_by()).all()
+    products = _with_relations(Product.query).order_by(*_order_by()).all()
     return jsonify([p.to_dict(admin=True) for p in products])
 
 
@@ -102,6 +126,9 @@ def create_product():
     status, error = _requested_status(data)
     if error:
         return jsonify({"error": error}), 400
+    tags, error = _resolve_tags(data)
+    if error:
+        return jsonify({"error": error}), 400
 
     product = Product(
         name=str(data["name"]).strip(),
@@ -115,6 +142,7 @@ def create_product():
     product.category_ref = category
     product.category = category.name if category else None
     product.set_status(status or "publicado")
+    product.health_tags = tags or []
     # Los productos nuevos van al final del orden manual
     last = db.session.query(func.max(Product.sort_order)).scalar()
     product.sort_order = (last + 1) if last is not None else 0
@@ -179,6 +207,12 @@ def update_product(product_id):
             return jsonify({"error": error}), 400
         product.category_ref = category
         product.category = category.name if category else None
+
+    tags, error = _resolve_tags(data)
+    if error:
+        return jsonify({"error": error}), 400
+    if tags is not None:
+        product.health_tags = tags
 
     status, error = _requested_status(data)
     if error:

@@ -68,6 +68,34 @@ class Category(db.Model):
 
 PRODUCT_STATUSES = ("publicado", "borrador", "archivado")
 
+# Un producto puede llevar varias etiquetas de salud y una etiqueta tiene varios productos
+product_health_tags = db.Table(
+    "product_health_tags",
+    db.Column("product_id", db.String(36), db.ForeignKey("products.id"), primary_key=True),
+    db.Column("tag_id", db.String(36), db.ForeignKey("health_tags.id"), primary_key=True),
+)
+
+MAX_HEALTH_TAGS_PER_PRODUCT = 6
+
+
+class HealthTag(db.Model):
+    """Etiqueta de salud ("Para cuidar tu corazón", "Fuente de fibra"...). Se filtra en la tienda."""
+    __tablename__ = "health_tags"
+
+    id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    name = db.Column(db.String(60), nullable=False)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    products = db.relationship("Product", secondary=product_health_tags, back_populates="health_tags", lazy=True)
+
+    def to_dict(self, counts=False):
+        data = {"id": self.id, "name": self.name, "sort_order": self.sort_order}
+        if counts:
+            data["product_count"] = len(self.products)
+            data["published_count"] = len([p for p in self.products if p.status == "publicado"])
+        return data
+
 
 class Product(db.Model):
     __tablename__ = "products"
@@ -93,6 +121,10 @@ class Product(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     category_ref = db.relationship("Category", back_populates="products")
+    health_tags = db.relationship("HealthTag", secondary=product_health_tags, back_populates="products", lazy=True)
+
+    def sorted_health_tags(self):
+        return sorted(self.health_tags, key=lambda t: (t.sort_order, t.name.lower()))
 
     def set_status(self, status):
         self.status = status
@@ -120,6 +152,7 @@ class Product(db.Model):
             "featured": bool(self.featured),
             "sold_out": self.is_out_of_stock(),
             "sort_order": self.sort_order or 0,
+            "health_tags": [{"id": t.id, "name": t.name} for t in self.sorted_health_tags()],
         }
         if admin:
             threshold = current_app.config.get("LOW_STOCK_THRESHOLD", 3)
