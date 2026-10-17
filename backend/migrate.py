@@ -82,4 +82,5 @@ with app.app_context():
         db.session.commit()
         added += 1
 
-    print("Listo." if added else "Nada que migrar: la base ya está al día.")
+    # Las tablas nuevas (categories, health_tags, product_health_tags...) las crea solo create_app()
+    print("Listo." if added else "Nada que migrar en las tablas existentes (las tablas nuevas se crean solas al arrancar).")

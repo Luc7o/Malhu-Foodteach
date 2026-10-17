@@ -64,6 +64,7 @@ export const api = {
 
   getProducts: () => request('/products'),
   getCategories: () => request('/categories'),
+  getHealthTags: () => request('/health-tags'),
   getLockers: () => request('/lockers'),
   createOrder: (token, items, lockerId) =>
     request('/orders', { method: 'POST', body: { items, locker_id: lockerId }, token }),

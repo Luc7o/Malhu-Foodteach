@@ -6,6 +6,7 @@ const TABS = [
   [`${ADMIN_BASE}/orders`, 'Pedidos', false],
   [`${ADMIN_BASE}/products`, 'Productos', false],
   [`${ADMIN_BASE}/categories`, 'Categorías', false],
+  [`${ADMIN_BASE}/health-tags`, 'Etiquetas de salud', false],
   [`${ADMIN_BASE}/customers`, 'Clientes', false],
   [`${ADMIN_BASE}/lockers`, 'Lockers', false],
 ]

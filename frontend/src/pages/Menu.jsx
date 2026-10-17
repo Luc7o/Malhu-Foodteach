@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Search, X } from 'lucide-react'
+import { Heart, Search, X } from 'lucide-react'
 import { api } from '../api'
 import { useCart } from '../context/CartContext'
 import { useToast } from '../context/ToastContext'
@@ -15,6 +15,7 @@ export default function Menu() {
   const [params, setParams] = useSearchParams()
   const [products, setProducts] = useState([])
   const [categoryList, setCategoryList] = useState(null)
+  const [healthTags, setHealthTags] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const { addItem } = useCart()
@@ -24,8 +25,9 @@ export default function Menu() {
   const search = params.get('q') || ''
   const category = params.get('categoria') || 'todas'
   const sort = params.get('orden') || 'default'
+  const health = params.get('salud') || ''
   const onlyAvailable = params.get('disponibles') === '1'
-  const hasFilters = Boolean(search) || category !== 'todas' || sort !== 'default' || onlyAvailable
+  const hasFilters = Boolean(search) || category !== 'todas' || sort !== 'default' || onlyAvailable || Boolean(health)
 
   function setParam(key, value) {
     const next = new URLSearchParams(params)
@@ -37,6 +39,7 @@ export default function Menu() {
   useEffect(() => {
     api.getProducts().then(setProducts).catch((e) => setError(e.message)).finally(() => setLoading(false))
     api.getCategories().then((list) => setCategoryList(list.map((c) => c.name))).catch(() => {})
+    api.getHealthTags().then((list) => setHealthTags(list.map((t) => t.name))).catch(() => {})
   }, [])
 
   // Las categorías salen en el orden que definió el administrador
@@ -51,13 +54,18 @@ export default function Menu() {
       (p) =>
         (category === 'todas' || p.category === category) &&
         (!onlyAvailable || !p.sold_out) &&
-        (!q || norm(p.name).includes(q) || norm(p.description).includes(q) || norm(p.category).includes(q))
+        (!health || p.health_tags?.some((t) => t.name === health)) &&
+        (!q ||
+          norm(p.name).includes(q) ||
+          norm(p.description).includes(q) ||
+          norm(p.category).includes(q) ||
+          p.health_tags?.some((t) => norm(t.name).includes(q)))
     )
     if (sort === 'precio_asc') list = [...list].sort((a, b) => a.price - b.price)
     if (sort === 'precio_desc') list = [...list].sort((a, b) => b.price - a.price)
     if (sort === 'nombre') list = [...list].sort((a, b) => a.name.localeCompare(b.name))
     return list
-  }, [products, search, category, sort, onlyAvailable])
+  }, [products, search, category, sort, onlyAvailable, health])
 
   function handleAdd(product, qty) {
     addItem(product, qty)
@@ -126,6 +134,24 @@ export default function Menu() {
               ))}
             </div>
           )}
+
+          {healthTags.length > 0 && (
+            <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1">
+              <span className="flex shrink-0 items-center gap-1 text-xs font-semibold uppercase tracking-wide text-brand-700">
+                <Heart className="h-3.5 w-3.5" aria-hidden="true" /> Cuida tu salud
+              </span>
+              {healthTags.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setParam('salud', health === t ? '' : t)}
+                  aria-pressed={health === t}
+                  className={`shrink-0 !px-3 !py-1 !text-xs ${health === t ? 'chip-on' : 'chip-off'}`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -138,6 +164,12 @@ export default function Menu() {
             </button>
           )}
         </div>
+
+        {health && (
+          <p className="mb-4 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-800">
+            Productos para <strong>{health.toLowerCase()}</strong>. Es información general sobre alimentación y no reemplaza la consulta con un profesional de la salud.
+          </p>
+        )}
 
         {error && (
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">

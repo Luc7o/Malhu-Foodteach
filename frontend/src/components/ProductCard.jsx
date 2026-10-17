@@ -51,6 +51,18 @@ export function ProductCard({ product, onAdd }) {
         {product.description && (
           <p className="line-clamp-2 flex-1 text-sm text-ink-500">{product.description}</p>
         )}
+        {product.health_tags?.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-0.5">
+            {product.health_tags.slice(0, 2).map((t) => (
+              <span key={t.id} className="rounded-md bg-brand-50 px-1.5 py-0.5 text-[11px] font-medium text-brand-700">{t.name}</span>
+            ))}
+            {product.health_tags.length > 2 && (
+              <span className="rounded-md bg-ink-100 px-1.5 py-0.5 text-[11px] font-medium text-ink-500" title={product.health_tags.slice(2).map((t) => t.name).join(', ')}>
+                +{product.health_tags.length - 2}
+              </span>
+            )}
+          </div>
+        )}
         <p className="pt-1 font-display text-xl font-bold text-ink-900">{money(product.price)}</p>
 
         <div className="mt-2 flex items-center gap-2">

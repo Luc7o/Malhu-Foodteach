@@ -16,6 +16,7 @@ from routes.orders import orders_bp
 from routes.locker_device import locker_device_bp
 from routes.admin import admin_bp
 from routes.categories import categories_bp
+from routes.health_tags import health_tags_bp
 from routes.izipay import izipay_bp
 from notifications import start_alert_thread
 from mqtt_bridge import init_mqtt
@@ -38,6 +39,7 @@ def create_app():
     app.register_blueprint(locker_device_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(categories_bp)
+    app.register_blueprint(health_tags_bp)
     app.register_blueprint(izipay_bp)
 
     @jwt.token_in_blocklist_loader
