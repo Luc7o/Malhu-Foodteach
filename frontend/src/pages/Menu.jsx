@@ -7,7 +7,6 @@ import { useToast } from '../context/ToastContext'
 import { EmptyState } from '../components/ui'
 import PageHeader from '../components/PageHeader'
 import { ProductCard, ProductCardSkeleton } from '../components/ProductCard'
-import ProductModal from '../components/ProductModal'
 
 // Compara sin tildes ni mayúsculas: "cesar" encuentra "César"
 const norm = (t) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -19,7 +18,6 @@ export default function Menu() {
   const [healthTags, setHealthTags] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [openProduct, setOpenProduct] = useState(null)
   const { addItem } = useCart()
   const toast = useToast()
 
@@ -180,7 +178,7 @@ export default function Menu() {
         )}
 
         {loading ? (
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <ProductCardSkeleton key={i} />
             ))}
@@ -193,17 +191,13 @@ export default function Menu() {
             action={hasFilters && <button onClick={() => setParams({}, { replace: true })} className="btn-secondary mt-2">Limpiar filtros</button>}
           />
         ) : (
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {visible.map((p) => (
-              <ProductCard key={p.id} product={p} onAdd={handleAdd} onOpen={setOpenProduct} />
+              <ProductCard key={p.id} product={p} onAdd={handleAdd} />
             ))}
           </div>
         )}
       </section>
-
-      {openProduct && (
-        <ProductModal product={openProduct} onClose={() => setOpenProduct(null)} onAdd={handleAdd} />
-      )}
     </div>
   )
 }

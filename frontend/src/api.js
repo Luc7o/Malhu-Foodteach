@@ -67,6 +67,7 @@ export const api = {
     request('/auth/login', { method: 'POST', body: { email, password, portal: PORTAL, ...(otp ? { otp } : {}) } }),
 
   getProducts: () => request('/products'),
+  getProduct: (id) => request(`/products/${encodeURIComponent(id)}`),
   getCategories: () => request('/categories'),
   getHealthTags: () => request('/health-tags'),
   getLockers: () => request('/lockers'),
