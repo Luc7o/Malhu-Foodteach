@@ -91,7 +91,17 @@ def save_product_image(file_storage, upload_root):
             raise ValueError("No se pudo subir la imagen. Revisa la configuración de Cloudinary")
         return res["secure_url"]
 
-    img.save(os.path.join(products_dir(upload_root), f"{name}.jpg"), "JPEG", quality=85, optimize=True)
+    # En Vercel el disco es de solo lectura y se borra solo: sin Cloudinary la foto se perdería
+    if os.getenv("VERCEL"):
+        raise ValueError(
+            "No se pueden guardar fotos en este servidor. Falta configurar CLOUDINARY_URL en las variables de entorno de Vercel"
+        )
+
+    try:
+        img.save(os.path.join(products_dir(upload_root), f"{name}.jpg"), "JPEG", quality=85, optimize=True)
+    except OSError as e:
+        print(f"[imagenes] No se pudo guardar en disco: {e}")
+        raise ValueError("No se pudo guardar la imagen en el servidor")
     return URL_PREFIX + f"{name}.jpg"
 
 
