@@ -70,7 +70,7 @@ function CustomerDetail({ id, onClose, onToggle, busy }) {
                 {customer.orders.map((o) => (
                   <li key={o.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
                     <span className="font-mono text-xs font-semibold text-ink-700">#{shortId(o.id)}</span>
-                    <span className="flex-1 truncate text-ink-600">{o.items.map((i) => `${i.quantity}× ${i.product_name}`).join(', ')}</span>
+                    <span className="flex-1 truncate text-ink-600">{o.items.map((i) => `${i.quantity}× ${i.product_name}${i.options?.length ? ` (${i.options.map((x) => x.name).join(', ')})` : ''}`).join(', ')}</span>
                     <span className="text-ink-400">{formatDateTime(o.created_at)}</span>
                     <span className="font-semibold text-ink-900">{money(o.total)}</span>
                     <StatusBadge status={o.status} />

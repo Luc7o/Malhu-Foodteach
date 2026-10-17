@@ -409,7 +409,7 @@ def export_orders():
     rows = []
     for o in orders:
         d = o.to_dict(admin=True)
-        productos = "; ".join(f"{i.quantity} x {i.product.name}" for i in o.items if i.product)
+        productos = "; ".join(i.describe() for i in o.items if i.product)
         rows.append([
             o.id[:8].upper(), _fmt(o.created_at), d["customer_name"], d["customer_email"],
             d["locker_name"], d.get("box_number") or "", o.status, o.payment_method or "",
@@ -429,12 +429,15 @@ def export_products():
     rows = [
         [p.name, p.category_name() or "", f"{float(p.price):.2f}", p.stock, p.status,
          "Sí" if p.featured else "No", "Sí" if p.is_out_of_stock() else "No",
-         "; ".join(t.name for t in p.sorted_health_tags())]
+         "; ".join(t.name for t in p.sorted_health_tags()),
+         p.calories if p.calories is not None else "",
+         "Sí" if p.ingredient_only else "No",
+         "Sí" if p.is_customizable() else "No"]
         for p in products
     ]
     return csv_response(
         f"productos-{_stamp()}.csv",
-        ["Nombre", "Categoría", "Precio (S/.)", "Stock", "Estado", "Destacado", "Agotado", "Etiquetas de salud"],
+        ["Nombre", "Categoría", "Precio (S/.)", "Stock", "Estado", "Destacado", "Agotado", "Etiquetas de salud", "Calorías (kcal)", "Solo ingrediente", "Personalizable"],
         rows,
     )
 

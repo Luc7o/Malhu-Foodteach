@@ -34,6 +34,15 @@ NEW_COLUMNS = [
     ("users", "last_login_at", "DATETIME NULL"),
     ("users", "totp_secret", "VARCHAR(64) NULL"),
     ("users", "totp_enabled", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    # --- información nutricional y platos personalizables
+    ("products", "calories", "INTEGER NULL"),
+    ("products", "protein_g", "NUMERIC(6,1) NULL"),
+    ("products", "carbs_g", "NUMERIC(6,1) NULL"),
+    ("products", "fat_g", "NUMERIC(6,1) NULL"),
+    ("products", "serving", "VARCHAR(60) NULL"),
+    ("products", "ingredient_only", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ("order_items", "selections", "TEXT NULL"),
+    ("order_items", "calories", "INTEGER NULL"),
 ]
 
 app = create_app()
@@ -82,5 +91,5 @@ with app.app_context():
         db.session.commit()
         added += 1
 
-    # Las tablas nuevas (categories, health_tags, product_health_tags...) las crea solo create_app()
+    # Las tablas nuevas (categories, health_tags, option_groups, option_group_items...) las crea solo create_app()
     print("Listo." if added else "Nada que migrar en las tablas existentes (las tablas nuevas se crean solas al arrancar).")

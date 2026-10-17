@@ -56,6 +56,12 @@ function Summary({ order }) {
           <li key={idx} className="flex justify-between gap-3">
             <span className="text-ink-700">
               {it.product_name} <span className="text-ink-400">× {it.quantity}</span>
+              {it.options?.length > 0 && (
+                <span className="block text-xs text-ink-500">{it.options.map((o) => o.name).join(' · ')}</span>
+              )}
+              {it.calories != null && (
+                <span className="block text-xs text-amber-700">{it.calories} kcal por unidad</span>
+              )}
             </span>
             <span className="text-ink-600">{money(it.unit_price * it.quantity)}</span>
           </li>

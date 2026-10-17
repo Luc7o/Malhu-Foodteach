@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Minus, Plus, Star } from 'lucide-react'
+import { Flame, Minus, Plus, SlidersHorizontal, Star } from 'lucide-react'
 import { ProductImage } from './ui'
 import { money } from '../lib/format'
+import { kcal } from '../lib/dish'
 
 export function ProductCardSkeleton() {
   return (
@@ -16,10 +17,12 @@ export function ProductCardSkeleton() {
   )
 }
 
-export function ProductCard({ product, onAdd }) {
+export function ProductCard({ product, onAdd, onOpen }) {
   const [qty, setQty] = useState(1)
   const outOfStock = product.sold_out ?? product.stock === 0
   const lowStock = product.stock > 0 && product.stock <= 5
+  const customizable = Boolean(product.customizable)
+  const calories = product.nutrition?.calories
 
   return (
     <article className="panel group flex flex-col overflow-hidden transition-all duration-300 ease-out hover:z-10 hover:scale-[1.04] hover:border-brand-500 hover:shadow-pop">
@@ -35,6 +38,11 @@ export function ProductCard({ product, onAdd }) {
             <Star className="h-3 w-3" fill="currentColor" aria-hidden="true" /> Destacado
           </span>
         )}
+        {customizable && !product.featured && (
+          <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-md bg-ink-900/85 px-2 py-1 text-xs font-semibold text-white">
+            <SlidersHorizontal className="h-3 w-3" aria-hidden="true" /> Armable
+          </span>
+        )}
         {(outOfStock || lowStock) && (
           <span
             className={`absolute left-2.5 top-2.5 rounded-md px-2 py-1 text-xs font-semibold ${
@@ -47,7 +55,11 @@ export function ProductCard({ product, onAdd }) {
       </div>
 
       <div className="flex flex-1 flex-col gap-1.5 p-4">
-        <h3 className="text-base font-semibold text-ink-900">{product.name}</h3>
+        <h3 className="text-base font-semibold text-ink-900">
+          <button type="button" onClick={() => onOpen?.(product)} className="text-left hover:underline focus-visible:underline">
+            {product.name}
+          </button>
+        </h3>
         {product.description && (
           <p className="line-clamp-2 flex-1 text-sm text-ink-500">{product.description}</p>
         )}
@@ -63,8 +75,23 @@ export function ProductCard({ product, onAdd }) {
             )}
           </div>
         )}
-        <p className="pt-1 font-display text-xl font-bold text-ink-900">{money(product.price)}</p>
+        <div className="flex items-baseline justify-between gap-2 pt-1">
+          <p className="font-display text-xl font-bold text-ink-900">
+            {customizable && <span className="mr-1 text-xs font-medium text-ink-500">Desde</span>}
+            {money(product.price)}
+          </p>
+          {calories != null && !customizable && (
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700" title="Calorías por porción">
+              <Flame className="h-3 w-3" aria-hidden="true" /> {kcal(calories)}
+            </span>
+          )}
+        </div>
 
+        {customizable ? (
+          <button type="button" onClick={() => onOpen?.(product)} disabled={outOfStock} className="btn-primary mt-2 w-full">
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" /> Personalizar
+          </button>
+        ) : (
         <div className="mt-2 flex items-center gap-2">
           <div className="flex items-center rounded-[10px] border border-ink-200">
             <button
@@ -98,6 +125,7 @@ export function ProductCard({ product, onAdd }) {
             Agregar
           </button>
         </div>
+        )}
       </div>
     </article>
   )

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from flask import current_app
 
+from customization import order_demand
 from extensions import db
 from models import LockerBox, Order, PickupCode, Product
 
@@ -48,9 +49,10 @@ def cancel_paid_order(order):
     Cancela un pedido ya pagado (acción de administrador): devuelve el stock,
     invalida el código y libera la caja para que se pueda volver a usar.
     """
-    for item in order.items:
-        if item.product:
-            item.product.stock += item.quantity
+    for pid, quantity in order_demand(order).items():
+        product = db.session.get(Product, pid)
+        if product:
+            product.stock += quantity
     pickup = order.pickup_code
     if pickup:
         if pickup.status == "activo":
@@ -64,19 +66,32 @@ class FulfillmentError(Exception):
     pass
 
 
+def stock_problem(order, lock=False):
+    """
+    Revisa que haya stock de todo lo que consume el pedido (platos e ingredientes elegidos).
+    Devuelve (mensaje_de_error | None, [(producto, cantidad)]). Con lock=True bloquea las filas
+    de los productos (en orden fijo, para que dos pagos a la vez no se bloqueen entre sí).
+    """
+    products = []
+    for pid, quantity in sorted(order_demand(order).items()):
+        query = Product.query.filter_by(id=pid)
+        product = (query.with_for_update() if lock else query).first()
+        if not product or not product.active or product.sold_out or product.stock < quantity:
+            name = product.name if product else "un producto"
+            return f"Ya no hay stock suficiente de {name}", []
+        products.append((product, quantity))
+    return None, products
+
+
 def fulfill_paid_order(order, method, ref):
     """
     Deja el pedido como pagado: descuenta stock, asigna una caja libre y crea el código
     de retiro. No hace commit (lo hace quien llama). Lanza FulfillmentError si ya no hay
     stock o cajas libres.
     """
-    products = []
-    for item in order.items:
-        product = Product.query.filter_by(id=item.product_id).with_for_update().first()
-        if not product or not product.active or product.sold_out or product.stock < item.quantity:
-            name = product.name if product else "un producto"
-            raise FulfillmentError(f"Ya no hay stock suficiente de {name}")
-        products.append((product, item.quantity))
+    problem, products = stock_problem(order, lock=True)
+    if problem:
+        raise FulfillmentError(problem)
 
     box = (
         LockerBox.query.filter_by(locker_id=order.locker_id, status="libre")

@@ -98,9 +98,14 @@ function OrderDetail({ order, busy, onCancel, onClose }) {
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-400">Productos</p>
           <ul className="divide-y divide-ink-100 rounded-xl border border-ink-200 text-sm">
-            {order.items.map((i) => (
-              <li key={i.product_id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                <span className="text-ink-800">{i.quantity} × {i.product_name}</span>
+            {order.items.map((i, idx) => (
+              <li key={`${i.product_id}-${idx}`} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                <span className="text-ink-800">
+                  {i.quantity} × {i.product_name}
+                  {i.options?.length > 0 && (
+                    <span className="mt-0.5 block text-xs text-ink-500">{i.options.map((o) => `${o.group}: ${o.name}`).join(' · ')}</span>
+                  )}
+                </span>
                 <span className="text-ink-500">{money(i.unit_price * i.quantity)}</span>
               </li>
             ))}

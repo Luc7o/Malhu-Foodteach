@@ -1,3 +1,4 @@
+import json
 import uuid
 import secrets
 from datetime import datetime, timedelta
@@ -119,9 +120,21 @@ class Product(db.Model):
     sold_out = db.Column(db.Boolean, nullable=False, default=False)
     sort_order = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # Información nutricional por porción (opcional). Valores referenciales.
+    calories = db.Column(db.Integer, nullable=True)
+    protein_g = db.Column(db.Numeric(6, 1), nullable=True)
+    carbs_g = db.Column(db.Numeric(6, 1), nullable=True)
+    fat_g = db.Column(db.Numeric(6, 1), nullable=True)
+    serving = db.Column(db.String(60), nullable=True)  # ej. "1 porción (250 g)"
+    # Ingrediente que solo se puede elegir dentro de un plato personalizable (no sale en el menú)
+    ingredient_only = db.Column(db.Boolean, nullable=False, default=False)
 
     category_ref = db.relationship("Category", back_populates="products")
     health_tags = db.relationship("HealthTag", secondary=product_health_tags, back_populates="products", lazy=True)
+    option_groups = db.relationship(
+        "OptionGroup", back_populates="product", lazy=True,
+        order_by="OptionGroup.sort_order", cascade="all, delete-orphan",
+    )
 
     def sorted_health_tags(self):
         return sorted(self.health_tags, key=lambda t: (t.sort_order, t.name.lower()))
@@ -135,6 +148,22 @@ class Product(db.Model):
 
     def is_out_of_stock(self):
         return bool(self.sold_out) or self.stock <= 0
+
+    def is_customizable(self):
+        return any(g.items for g in self.option_groups)
+
+    def nutrition_dict(self):
+        """Información nutricional, o None si el producto no tiene ningún dato cargado."""
+        values = {
+            "calories": self.calories,
+            "protein_g": float(self.protein_g) if self.protein_g is not None else None,
+            "carbs_g": float(self.carbs_g) if self.carbs_g is not None else None,
+            "fat_g": float(self.fat_g) if self.fat_g is not None else None,
+        }
+        if all(v is None for v in values.values()):
+            return None
+        values["serving"] = self.serving
+        return values
 
     def to_dict(self, admin=False):
         data = {
@@ -153,11 +182,77 @@ class Product(db.Model):
             "sold_out": self.is_out_of_stock(),
             "sort_order": self.sort_order or 0,
             "health_tags": [{"id": t.id, "name": t.name} for t in self.sorted_health_tags()],
+            "nutrition": self.nutrition_dict(),
+            "ingredient_only": bool(self.ingredient_only),
+            "customizable": self.is_customizable(),
+            "option_groups": [g.to_dict(admin=admin) for g in self.option_groups],
         }
         if admin:
             threshold = current_app.config.get("LOW_STOCK_THRESHOLD", 3)
             data["sold_out_manual"] = bool(self.sold_out)
             data["low_stock"] = 0 < self.stock <= threshold
+        return data
+
+
+class OptionGroup(db.Model):
+    """
+    Un paso del armado de un plato personalizable ("Elige tu base", "Proteína", "Toppings").
+    El cliente debe elegir entre min_select y max_select opciones de este grupo.
+    """
+    __tablename__ = "option_groups"
+
+    id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    product_id = db.Column(db.String(36), db.ForeignKey("products.id"), nullable=False, index=True)
+    name = db.Column(db.String(60), nullable=False)
+    min_select = db.Column(db.Integer, nullable=False, default=0)
+    max_select = db.Column(db.Integer, nullable=False, default=1)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+    product = db.relationship("Product", back_populates="option_groups")
+    items = db.relationship(
+        "OptionGroupItem", back_populates="group", lazy=True,
+        order_by="OptionGroupItem.sort_order", cascade="all, delete-orphan",
+    )
+
+    def to_dict(self, admin=False):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "min_select": self.min_select,
+            "max_select": self.max_select,
+            "required": self.min_select > 0,
+            "items": [i.to_dict(admin=admin) for i in self.items],
+        }
+
+
+class OptionGroupItem(db.Model):
+    """Una opción dentro de un grupo: apunta a un producto (el ingrediente) y puede costar un extra."""
+    __tablename__ = "option_group_items"
+
+    id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    group_id = db.Column(db.String(36), db.ForeignKey("option_groups.id"), nullable=False, index=True)
+    ingredient_id = db.Column(db.String(36), db.ForeignKey("products.id"), nullable=False)
+    extra_price = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+    group = db.relationship("OptionGroup", back_populates="items")
+    ingredient = db.relationship("Product", foreign_keys=[ingredient_id])
+
+    def is_available(self):
+        ing = self.ingredient
+        return bool(ing and ing.active and not ing.is_out_of_stock())
+
+    def to_dict(self, admin=False):
+        ing = self.ingredient
+        data = {
+            "id": self.id,
+            "ingredient_id": self.ingredient_id,
+            "name": ing.name if ing else None,
+            "image_url": ing.image_url if ing else None,
+            "extra_price": float(self.extra_price or 0),
+            "nutrition": ing.nutrition_dict() if ing else None,
+            "available": self.is_available(),
+        }
         return data
 
 
@@ -294,9 +389,29 @@ class OrderItem(db.Model):
     order_id = db.Column(db.String(36), db.ForeignKey("orders.id"), nullable=False)
     product_id = db.Column(db.String(36), db.ForeignKey("products.id"), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
+    # Precio unitario final: incluye los extras de las opciones elegidas
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
+    # Foto de lo que eligió el cliente (JSON): [{item_id, product_id, name, group, extra_price, calories}]
+    selections = db.Column(db.Text, nullable=True)
+    # Calorías por unidad (plato + opciones) calculadas al hacer el pedido
+    calories = db.Column(db.Integer, nullable=True)
 
     product = db.relationship("Product")
+
+    def selection_list(self):
+        if not self.selections:
+            return []
+        try:
+            data = json.loads(self.selections)
+        except ValueError:
+            return []
+        return data if isinstance(data, list) else []
+
+    def describe(self):
+        """Texto corto para correos y reportes: "2 × Bowl (Arroz, Pollo)"."""
+        name = self.product.name if self.product else "Producto"
+        options = [o.get("name") for o in self.selection_list() if o.get("name")]
+        return f"{self.quantity} × {name}" + (f" ({', '.join(options)})" if options else "")
 
     def to_dict(self):
         return {
@@ -304,6 +419,8 @@ class OrderItem(db.Model):
             "product_name": self.product.name if self.product else None,
             "quantity": self.quantity,
             "unit_price": float(self.unit_price),
+            "options": self.selection_list(),
+            "calories": self.calories,
         }
 
 

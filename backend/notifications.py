@@ -102,7 +102,7 @@ def notify_order_paid(order):
     address = f" ({order.locker.address})" if order.locker and order.locker.address else ""
     expires = pickup.expires_at.strftime("%d/%m/%Y %H:%M") + " (hora UTC)"
     first_name = (order.user.name or "").split(" ")[0] or "hola"
-    items = "\n".join(f"- {i.quantity} × {i.product.name}" for i in order.items if i.product)
+    items = "\n".join(f"- {i.describe()}" for i in order.items if i.product)
 
     text = (
         f"Hola {first_name}, tu pedido ya está en la caja {box_number} de {locker}{address}.\n\n"
@@ -113,7 +113,7 @@ def notify_order_paid(order):
         f"Total pagado: S/. {float(order.total):.2f}\n\n"
         f"También puedes ver tu QR en 'Mis pedidos'. — {store}"
     )
-    items_html = "".join(f"<li>{i.quantity} × {escape(i.product.name)}</li>" for i in order.items if i.product)
+    items_html = "".join(f"<li>{escape(i.describe())}</li>" for i in order.items if i.product)
     html = f"""
 <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#0F2A1D">
   <h2 style="color:#375534">Tu pedido está listo para retirar</h2>

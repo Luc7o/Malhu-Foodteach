@@ -9,7 +9,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from extensions import db
 from models import Order, OrderItem, Product, Locker, LockerBox, PickupCode
 from payments import get_provider, PaymentError
-from services import FulfillmentError, fulfill_paid_order
+from customization import SelectionError, dumps_selection, nutrition_totals, resolve_selection
+from services import FulfillmentError, fulfill_paid_order, stock_problem
 
 orders_bp = Blueprint("orders", __name__, url_prefix="/api/orders")
 
@@ -36,8 +37,8 @@ def create_order():
     if not any(b.status == "libre" for b in locker.boxes):
         return jsonify({"error": "No hay casilleros libres en ese locker por ahora"}), 409
 
-    # Une productos repetidos y valida cantidades
-    wanted = {}
+    # Cada línea es un plato + las opciones que eligió el cliente. Dos líneas iguales se unen.
+    lines = {}
     for item in items:
         try:
             quantity = int(item.get("quantity", 1))
@@ -46,28 +47,53 @@ def create_order():
         if quantity < 1:
             return jsonify({"error": "La cantidad debe ser al menos 1"}), 400
         pid = item.get("product_id")
-        wanted[pid] = wanted.get(pid, 0) + quantity
+        option_ids = item.get("option_ids") or []
+        if not isinstance(option_ids, list):
+            return jsonify({"error": "option_ids debe ser una lista"}), 400
+        key = (pid, tuple(sorted(set(str(i) for i in option_ids))))
+        if key in lines:
+            lines[key]["quantity"] += quantity
+        else:
+            lines[key] = {"product_id": pid, "option_ids": list(key[1]), "quantity": quantity}
+
+    built = []  # (producto, cantidad, extra, snapshot, calorías)
+    for line in lines.values():
+        product = Product.query.get(line["product_id"]) if line["product_id"] else None
+        if not product or not product.active or product.ingredient_only:
+            return jsonify({"error": "Uno de los productos ya no está disponible"}), 400
+        try:
+            chosen, extra, snapshot = resolve_selection(product, line["option_ids"])
+        except SelectionError as e:
+            return jsonify({"error": str(e)}), 400
+        totals = nutrition_totals(product, [o.ingredient for o in chosen])
+        built.append((product, line["quantity"], extra, snapshot, totals["calories"] if totals else None))
+
+    # Stock: el plato y cada ingrediente elegido (sumando todas las líneas del pedido)
+    demand = {}
+    for product, quantity, _extra, snapshot, _cal in built:
+        demand[product.id] = demand.get(product.id, 0) + quantity
+        for opt in snapshot:
+            demand[opt["product_id"]] = demand.get(opt["product_id"], 0) + quantity
+    for pid, quantity in demand.items():
+        product = Product.query.get(pid)
+        if not product or product.sold_out or product.stock < quantity:
+            return jsonify({"error": f"Stock insuficiente para {product.name if product else 'un producto'}"}), 400
 
     order = Order(user_id=user_id, locker_id=locker_id, total=0)
     db.session.add(order)
     db.session.flush()
 
     total = 0
-    for pid, quantity in wanted.items():
-        product = Product.query.get(pid)
-        if not product or not product.active:
-            db.session.rollback()
-            return jsonify({"error": "Uno de los productos ya no está disponible"}), 400
-        if product.sold_out or product.stock < quantity:
-            db.session.rollback()
-            return jsonify({"error": f"Stock insuficiente para {product.name}"}), 400
-
-        total += float(product.price) * quantity
+    for product, quantity, extra, snapshot, calories in built:
+        unit_price = round(float(product.price) + extra, 2)
+        total += unit_price * quantity
         db.session.add(OrderItem(
             order_id=order.id,
             product_id=product.id,
             quantity=quantity,
-            unit_price=product.price,
+            unit_price=unit_price,
+            selections=dumps_selection(snapshot),
+            calories=calories,
         ))
 
     order.total = round(total, 2)
@@ -95,11 +121,9 @@ def pay_order(order_id):
     method = (request.get_json(silent=True) or {}).get("method", "tarjeta")
 
     # Vuelve a comprobar el stock: pudo cambiar desde que se creó el pedido
-    for item in order.items:
-        product = Product.query.filter_by(id=item.product_id).with_for_update().first()
-        if not product or not product.active or product.sold_out or product.stock < item.quantity:
-            name = product.name if product else "un producto"
-            return jsonify({"error": f"Ya no hay stock suficiente de {name}"}), 409
+    problem, _ = stock_problem(order, lock=True)
+    if problem:
+        return jsonify({"error": problem}), 409
 
     # Busca una caja libre (con bloqueo de fila para no asignar la misma caja dos veces)
     free_box = (

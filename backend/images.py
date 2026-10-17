@@ -1,9 +1,8 @@
 """Subida y limpieza de imágenes de productos.
 
-- Con BLOB_READ_WRITE_TOKEN definida (producción en Vercel): las fotos se suben a Vercel Blob
-  y se guarda la URL https completa en el producto.
-- Con CLOUDINARY_URL definida: se suben a Cloudinary (opción anterior).
-- Sin ninguna de las dos (tu equipo): se guardan en disco como antes.
+- Con CLOUDINARY_URL definida (producción en Vercel): las fotos se suben a Cloudinary y
+  se guarda la URL https completa en el producto.
+- Sin CLOUDINARY_URL (tu equipo, o Railway con volumen): se guardan en disco como antes.
 """
 import io
 import os
@@ -19,23 +18,6 @@ ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP", "GIF"}
 MAX_SIDE = 1000
 URL_PREFIX = "/uploads/products/"
 CLOUD_FOLDER = "malhu/products"
-
-
-
-BLOB_API = "https://blob.vercel-storage.com"
-BLOB_FOLDER = "malhu/products"
-
-
-def _blob_token():
-    """Token de lectura/escritura de Vercel Blob, o '' si no está configurado."""
-    return os.getenv("BLOB_READ_WRITE_TOKEN", "").strip()
-
-
-def _blob_headers(extra=None):
-    h = {"authorization": f"Bearer {_blob_token()}", "x-api-version": "7"}
-    if extra:
-        h.update(extra)
-    return h
 
 
 def _cloudinary():
@@ -95,29 +77,6 @@ def save_product_image(file_storage, upload_root):
     img = _procesar(file_storage)
     name = uuid.uuid4().hex
 
-    if _blob_token():
-        import requests  # ya está en requirements.txt
-
-        buf = io.BytesIO()
-        img.save(buf, "JPEG", quality=85, optimize=True)
-        try:
-            r = requests.put(
-                f"{BLOB_API}/{BLOB_FOLDER}/{name}.jpg",
-                data=buf.getvalue(),
-                headers=_blob_headers({
-                    "x-content-type": "image/jpeg",
-                    "x-add-random-suffix": "0",
-                    "x-cache-control-max-age": "31536000",
-                }),
-                timeout=25,
-            )
-            r.raise_for_status()
-            return r.json()["url"]
-        except Exception as e:
-            detail = getattr(getattr(e, "response", None), "text", "")
-            print(f"[imagenes] Error subiendo a Vercel Blob: {e} {detail}")
-            raise ValueError("No se pudo subir la imagen. Revisa la configuración de Vercel Blob")
-
     cloud = _cloudinary()
     if cloud:
         buf = io.BytesIO()
@@ -150,20 +109,6 @@ def delete_local_image(url, upload_root):
             os.remove(os.path.join(products_dir(upload_root), name))
         except OSError:
             pass
-        return
-
-    # Imagen de Vercel Blob subida por nosotros
-    if ".blob.vercel-storage.com/" in url and _blob_token():
-        try:
-            import requests
-            requests.post(
-                f"{BLOB_API}/delete",
-                json={"urls": [url]},
-                headers=_blob_headers({"content-type": "application/json"}),
-                timeout=15,
-            )
-        except Exception as e:
-            print(f"[imagenes] No se pudo borrar de Vercel Blob: {e}")
         return
 
     # Imagen de Cloudinary subida por nosotros: .../upload/v123/malhu/products/xxxx.jpg

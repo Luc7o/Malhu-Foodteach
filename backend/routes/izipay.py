@@ -12,9 +12,9 @@ from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from extensions import db
-from models import LockerBox, Order, Product, User
+from models import LockerBox, Order, User
 from payments import IzipayProvider, PaymentError, check_hash, get_provider, parse_answer
-from services import settle_izipay_payment
+from services import settle_izipay_payment, stock_problem
 
 izipay_bp = Blueprint("izipay", __name__, url_prefix="/api")
 
@@ -35,11 +35,9 @@ def form_token(order_id):
         return jsonify({"error": f"La orden ya está en estado '{order.status}'"}), 400
 
     # Antes de cobrar, confirma que todavía hay stock y una caja libre
-    for item in order.items:
-        product = Product.query.get(item.product_id)
-        if not product or not product.active or product.stock < item.quantity:
-            name = product.name if product else "un producto"
-            return jsonify({"error": f"Ya no hay stock suficiente de {name}"}), 409
+    problem, _ = stock_problem(order)
+    if problem:
+        return jsonify({"error": problem}), 409
     if not LockerBox.query.filter_by(locker_id=order.locker_id, status="libre").first():
         return jsonify({"error": "No hay casilleros libres en ese locker por ahora"}), 409
 

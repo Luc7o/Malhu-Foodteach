@@ -71,7 +71,7 @@ export default function MyOrders() {
                       <StatusBadge status={o.status} />
                     </div>
                     <p className="mt-1 truncate text-sm text-ink-500">
-                      {o.items.map((i) => `${i.quantity} × ${i.product_name}`).join(', ')}
+                      {o.items.map((i) => `${i.quantity} × ${i.product_name}${i.options?.length ? ` (${i.options.map((x) => x.name).join(', ')})` : ''}`).join(', ')}
                     </p>
                     <p className="mt-0.5 text-xs text-ink-400">
                       {formatDateTime(o.created_at)} · {count} {count === 1 ? 'producto' : 'productos'}

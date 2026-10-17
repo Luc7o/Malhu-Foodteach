@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext'
 import { EmptyState } from '../components/ui'
 import PageHeader from '../components/PageHeader'
 import { ProductCard, ProductCardSkeleton } from '../components/ProductCard'
+import ProductModal from '../components/ProductModal'
 
 // Compara sin tildes ni mayúsculas: "cesar" encuentra "César"
 const norm = (t) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -18,6 +19,7 @@ export default function Menu() {
   const [healthTags, setHealthTags] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [openProduct, setOpenProduct] = useState(null)
   const { addItem } = useCart()
   const toast = useToast()
 
@@ -67,8 +69,8 @@ export default function Menu() {
     return list
   }, [products, search, category, sort, onlyAvailable, health])
 
-  function handleAdd(product, qty) {
-    addItem(product, qty)
+  function handleAdd(product, qty, options = []) {
+    addItem(product, qty, options)
     toast.success(`${qty} × ${product.name} en el carrito`)
   }
 
@@ -193,11 +195,15 @@ export default function Menu() {
         ) : (
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {visible.map((p) => (
-              <ProductCard key={p.id} product={p} onAdd={handleAdd} />
+              <ProductCard key={p.id} product={p} onAdd={handleAdd} onOpen={setOpenProduct} />
             ))}
           </div>
         )}
       </section>
+
+      {openProduct && (
+        <ProductModal product={openProduct} onClose={() => setOpenProduct(null)} onAdd={handleAdd} />
+      )}
     </div>
   )
 }

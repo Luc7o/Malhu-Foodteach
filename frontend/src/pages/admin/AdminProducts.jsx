@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  AlertTriangle, ArrowDown, ArrowUp, Download, Heart, ImagePlus, Pencil, Plus, Search, Star, Trash2,
+  AlertTriangle, ArrowDown, ArrowUp, Download, Flame, Heart, ImagePlus, Pencil, Plus, Search, SlidersHorizontal, Star, Trash2,
 } from 'lucide-react'
 import { adminApi as api } from '../../adminApi'
 import { useAuth } from '../../context/AuthContext'
@@ -9,6 +9,7 @@ import { useToast } from '../../context/ToastContext'
 import AdminNav from '../../components/AdminNav'
 import { useConfirm } from '../../components/ConfirmDialog'
 import Modal from '../../components/Modal'
+import OptionGroupsEditor, { groupsError, groupsToForm, groupsToPayload } from '../../components/OptionGroupsEditor'
 import { ADMIN_BASE } from '../../lib/appMode'
 import { EmptyState, PageLoader, ProductImage, Spinner } from '../../components/ui'
 import { money } from '../../lib/format'
@@ -19,6 +20,8 @@ const MAX_IMAGE_MB = 5
 const EMPTY_FORM = {
   name: '', description: '', category_id: '', price: '', stock: '', image_url: '',
   status: 'publicado', featured: false, sold_out: false, health_tag_ids: [],
+  calories: '', protein_g: '', carbs_g: '', fat_g: '', serving: '', ingredient_only: false,
+  customizable: false, option_groups: [],
 }
 
 const MAX_TAGS = 6
@@ -29,7 +32,7 @@ const STATUS_OPTIONS = [
   ['archivado', 'Archivado', 'Retirado del menú; se conserva el historial'],
 ]
 
-function ProductForm({ initial, categories, healthTags, onCancel, onSaved, onCategoryCreated, onHealthTagCreated }) {
+function ProductForm({ initial, products, categories, healthTags, onCancel, onSaved, onCategoryCreated, onHealthTagCreated }) {
   const { token } = useAuth()
   const toast = useToast()
   const [form, setForm] = useState(
@@ -40,6 +43,14 @@ function ProductForm({ initial, categories, healthTags, onCancel, onSaved, onCat
           category_id: initial.category_id || '',
           sold_out: initial.sold_out_manual,
           health_tag_ids: (initial.health_tags || []).map((t) => t.id),
+          calories: initial.nutrition?.calories ?? '',
+          protein_g: initial.nutrition?.protein_g ?? '',
+          carbs_g: initial.nutrition?.carbs_g ?? '',
+          fat_g: initial.nutrition?.fat_g ?? '',
+          serving: initial.nutrition?.serving ?? '',
+          ingredient_only: Boolean(initial.ingredient_only),
+          customizable: Boolean(initial.customizable),
+          option_groups: groupsToForm(initial.option_groups),
         }
       : EMPTY_FORM
   )
@@ -58,6 +69,10 @@ function ProductForm({ initial, categories, healthTags, onCancel, onSaved, onCat
   }
 
   const categoryName = categories.find((c) => c.id === form.category_id)?.name
+  // Productos que se pueden ofrecer como opción: cualquiera menos este y los que ya son platos armables
+  const candidates = (products || []).filter(
+    (p) => p.id !== initial?.id && !p.customizable && (p.status !== 'archivado' || form.option_groups.some((g) => g.items.some((i) => i.ingredient_id === p.id)))
+  )
 
   function toggleTag(id) {
     setForm((f) => ({
@@ -130,6 +145,10 @@ function ProductForm({ initial, categories, healthTags, onCancel, onSaved, onCat
     if (!form.name.trim()) return setError('El nombre es obligatorio')
     if (Number.isNaN(price) || price < 0) return setError('Ingresa un precio válido')
     if (Number.isNaN(stock) || stock < 0) return setError('Ingresa un stock válido')
+    const groups = form.customizable && !form.ingredient_only ? form.option_groups : []
+    if (form.customizable && !form.ingredient_only && groups.length === 0) return setError('Agrega al menos un paso al plato personalizable o desactiva la opción')
+    const problem = groupsError(groups)
+    if (problem) return setError(problem)
 
     setSaving(true)
     const payload = {
@@ -143,6 +162,13 @@ function ProductForm({ initial, categories, healthTags, onCancel, onSaved, onCat
       featured: form.featured,
       sold_out: form.sold_out,
       health_tag_ids: form.health_tag_ids,
+      calories: form.calories,
+      protein_g: form.protein_g,
+      carbs_g: form.carbs_g,
+      fat_g: form.fat_g,
+      serving: form.serving,
+      ingredient_only: form.ingredient_only,
+      option_groups: groupsToPayload(groups),
     }
     try {
       const saved = isEdit
@@ -161,6 +187,7 @@ function ProductForm({ initial, categories, healthTags, onCancel, onSaved, onCat
     <Modal
       title={isEdit ? 'Editar producto' : 'Nuevo producto'}
       onClose={onCancel}
+      size="lg"
       footer={
         <>
           <button type="button" onClick={onCancel} className="btn-secondary">Cancelar</button>
@@ -307,6 +334,63 @@ function ProductForm({ initial, categories, healthTags, onCancel, onSaved, onCat
             <input id="p-stock" className="input" type="number" min="0" value={form.stock} onChange={(e) => set('stock', e.target.value)} required />
           </div>
         </div>
+
+        <div>
+          <div className="mb-1.5 flex items-baseline justify-between">
+            <label className="label !mb-0">Información nutricional <span className="font-normal text-ink-400">(opcional, por porción)</span></label>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <label className="label" htmlFor="p-kcal">Calorías (kcal)</label>
+              <input id="p-kcal" className="input" type="number" min="0" max="5000" step="1" value={form.calories} onChange={(e) => set('calories', e.target.value)} />
+            </div>
+            <div>
+              <label className="label" htmlFor="p-prot">Proteínas (g)</label>
+              <input id="p-prot" className="input" type="number" min="0" step="0.1" value={form.protein_g} onChange={(e) => set('protein_g', e.target.value)} />
+            </div>
+            <div>
+              <label className="label" htmlFor="p-carb">Carbohid. (g)</label>
+              <input id="p-carb" className="input" type="number" min="0" step="0.1" value={form.carbs_g} onChange={(e) => set('carbs_g', e.target.value)} />
+            </div>
+            <div>
+              <label className="label" htmlFor="p-fat">Grasas (g)</label>
+              <input id="p-fat" className="input" type="number" min="0" step="0.1" value={form.fat_g} onChange={(e) => set('fat_g', e.target.value)} />
+            </div>
+          </div>
+          <input className="input mt-2" aria-label="Porción" placeholder='Porción, ej. "1 taza (150 g)"' maxLength={60} value={form.serving} onChange={(e) => set('serving', e.target.value)} />
+          <p className="mt-1.5 text-xs text-ink-400">Se muestra al cliente. En un plato armable, las calorías se suman con las de cada ingrediente elegido.</p>
+        </div>
+
+        <div className="space-y-2 rounded-xl bg-ink-50 p-3">
+          <label className="flex items-start gap-2 text-sm text-ink-700">
+            <input
+              type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={form.ingredient_only}
+              onChange={(e) => setForm((f) => ({ ...f, ingredient_only: e.target.checked, customizable: e.target.checked ? false : f.customizable }))}
+            />
+            <span><strong>Solo ingrediente.</strong> No sale en el menú; únicamente se puede elegir dentro de un plato personalizable. Su stock se descuenta cada vez que alguien lo elige.</span>
+          </label>
+          {!form.ingredient_only && (
+            <label className="flex items-start gap-2 text-sm text-ink-700">
+              <input
+                type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={form.customizable}
+                onChange={(e) => setForm((f) => ({ ...f, customizable: e.target.checked, option_groups: e.target.checked && f.option_groups.length === 0 ? [{ name: '', min_select: 1, max_select: 1, items: [{ ingredient_id: '', extra_price: '0' }] }] : f.option_groups }))}
+              />
+              <span><strong>Plato personalizable.</strong> El cliente arma su plato eligiendo productos por pasos (base, proteína, toppings…).</span>
+            </label>
+          )}
+        </div>
+
+        {form.customizable && !form.ingredient_only && (
+          <div>
+            <label className="label">Pasos del armado</label>
+            {candidates.length === 0 && (
+              <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                Primero crea los productos que se podrán elegir (marcándolos como «Solo ingrediente» si no deben salir en el menú).
+              </p>
+            )}
+            <OptionGroupsEditor groups={form.option_groups} onChange={(g) => set('option_groups', g)} candidates={candidates} />
+          </div>
+        )}
 
         <div>
           <label className="label" htmlFor="p-status">Estado</label>
@@ -572,6 +656,9 @@ export default function AdminProducts() {
                     </p>
                   )}
                   <div className="mt-1.5 flex flex-wrap gap-1">
+                    {p.customizable && <Tag tone="draft"><SlidersHorizontal className="h-3 w-3" aria-hidden="true" /> Armable</Tag>}
+                    {p.ingredient_only && <Tag tone="muted">Ingrediente</Tag>}
+                    {p.nutrition?.calories != null && <Tag tone="warn"><Flame className="h-3 w-3" aria-hidden="true" /> {p.nutrition.calories} kcal</Tag>}
                     {p.featured && <Tag tone="star"><Star className="h-3 w-3" aria-hidden="true" /> Destacado</Tag>}
                     {p.status === 'borrador' && <Tag tone="draft">Borrador</Tag>}
                     {p.status === 'archivado' && <Tag tone="muted">Archivado</Tag>}
@@ -639,6 +726,7 @@ export default function AdminProducts() {
       {editing !== null && (
         <ProductForm
           initial={editing.id ? editing : null}
+          products={products}
           categories={categories}
           healthTags={healthTags}
           onCancel={() => setEditing(null)}

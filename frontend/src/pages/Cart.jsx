@@ -7,6 +7,7 @@ import { useCart } from '../context/CartContext'
 import { useToast } from '../context/ToastContext'
 import { EmptyState, LockerMini, ProductImage, Spinner } from '../components/ui'
 import { money } from '../lib/format'
+import { kcal, nutritionTotals, unitPrice } from '../lib/dish'
 
 function LockerOption({ locker, selected, onSelect }) {
   const full = locker.boxes_libres === 0
@@ -78,7 +79,11 @@ export default function Cart() {
     }
     setSubmitting(true)
     try {
-      const orderItems = items.map((i) => ({ product_id: i.product.id, quantity: i.quantity }))
+      const orderItems = items.map((i) => ({
+        product_id: i.product.id,
+        quantity: i.quantity,
+        option_ids: i.options.map((o) => o.id),
+      }))
       const order = await api.createOrder(token, orderItems, lockerId)
       clearCart()
       navigate(`/orders/${order.id}`)
@@ -111,8 +116,11 @@ export default function Cart() {
 
       <div className="grid gap-8 md:grid-cols-[1fr_20rem]">
         <ul className="divide-y divide-ink-200 self-start rounded-2xl border border-ink-200 bg-white">
-          {items.map((i) => (
-            <li key={i.product.id} className="flex items-center gap-4 p-4">
+          {items.map((i) => {
+            const price = unitPrice(i.product, i.options)
+            const totals = nutritionTotals(i.product, i.options)
+            return (
+            <li key={i.key} className="flex items-center gap-4 p-4">
               <ProductImage
                 src={i.product.image_url}
                 alt={i.product.name}
@@ -121,11 +129,21 @@ export default function Cart() {
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-ink-900">{i.product.name}</p>
-                <p className="text-sm text-ink-500">{money(i.product.price)} c/u</p>
+                {i.options.length > 0 && (
+                  <p className="text-sm text-ink-600">{i.options.map((o) => o.name).join(' · ')}</p>
+                )}
+                <p className="text-sm text-ink-500">
+                  {money(price)} c/u
+                  {totals && (
+                    <span className="ml-2 font-semibold text-amber-700" title={totals.complete ? 'Calorías por unidad' : 'Calorías aproximadas por unidad'}>
+                      {totals.complete ? '' : '≈ '}{kcal(totals.calories)}
+                    </span>
+                  )}
+                </p>
               </div>
               <div className="flex items-center rounded-[10px] border border-ink-200">
                 <button
-                  onClick={() => incrementItem(i.product.id, -1)}
+                  onClick={() => incrementItem(i.key, -1)}
                   disabled={i.quantity <= 1}
                   className="p-2 text-ink-500 hover:text-ink-900 disabled:opacity-30"
                   aria-label="Quitar una unidad"
@@ -134,7 +152,7 @@ export default function Cart() {
                 </button>
                 <span className="w-6 text-center text-sm font-semibold">{i.quantity}</span>
                 <button
-                  onClick={() => incrementItem(i.product.id, 1)}
+                  onClick={() => incrementItem(i.key, 1)}
                   disabled={i.quantity >= (i.product.stock ?? Infinity)}
                   className="p-2 text-ink-500 hover:text-ink-900 disabled:opacity-30"
                   aria-label="Agregar una unidad"
@@ -143,17 +161,18 @@ export default function Cart() {
                 </button>
               </div>
               <p className="w-20 text-right font-display font-bold text-ink-900">
-                {money(i.product.price * i.quantity)}
+                {money(price * i.quantity)}
               </p>
               <button
-                onClick={() => removeItem(i.product.id)}
+                onClick={() => removeItem(i.key)}
                 className="rounded-lg p-2 text-ink-400 hover:bg-red-50 hover:text-red-600"
                 aria-label={`Quitar ${i.product.name}`}
               >
                 <Trash2 className="h-4 w-4" />
               </button>
             </li>
-          ))}
+            )
+          })}
         </ul>
 
         <aside className="panel sticky top-20 h-fit space-y-5 p-5">
