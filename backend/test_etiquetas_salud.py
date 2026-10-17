@@ -32,7 +32,7 @@ with app.app_context():
     db.session.add_all([admin, ana])
     db.session.commit()
 
-H = auth(client.post("/api/auth/login", json={"email": "admin@malhu.com", "password": "admin1234"}).get_json()["token"])
+H = auth(client.post("/api/auth/login", json={"email": "admin@malhu.com", "password": "admin1234", "portal": "admin"}).get_json()["token"])
 tok_ana = client.post("/api/auth/login", json={"email": "ana@mail.com", "password": "secreto123"}).get_json()["token"]
 
 # ---------------------------------------------------------------- permisos y validación

@@ -1,9 +1,10 @@
 import { Routes, Route, Navigate, Link, NavLink } from 'react-router-dom'
-import { LogOut, ShieldCheck } from 'lucide-react'
+import { ExternalLink, LogOut, ShieldCheck } from 'lucide-react'
 import { useAuth } from './context/AuthContext'
 import { RequireAdmin } from './components/PrivateRoute'
 import { ConfirmProvider } from './components/ConfirmDialog'
 import { Logo } from './components/ui'
+import { STORE_URL } from './lib/appMode'
 import Login from './pages/Login'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminLockers from './pages/admin/AdminLockers'
@@ -25,8 +26,21 @@ function AdminHeader() {
         <span className="rounded bg-white/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-brand-100">
           Admin
         </span>
+        {STORE_URL && (
+          <a
+            href={STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-sm font-semibold text-brand-100 hover:bg-white/10 hover:text-white"
+            title="Abrir la tienda en otra pestaña"
+          >
+            <ExternalLink className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Ver tienda</span>
+            <span className="sr-only sm:hidden">Ver tienda</span>
+          </a>
+        )}
         {user && (
-          <div className="ml-auto flex items-center gap-1">
+          <div className={`flex items-center gap-1 ${STORE_URL ? '' : 'ml-auto'}`}>
             <span className="hidden max-w-[10rem] truncate text-sm font-semibold text-white sm:inline">{user.name}</span>
             <NavLink
               to="/security"

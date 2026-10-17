@@ -56,7 +56,7 @@ with app.app_context():
     db.session.commit()
     locker_id, other_id, product_id = locker.id, other.id, p.id
 
-adm = client.post("/api/auth/login", json={"email": "admin@malhu.com", "password": "admin123"}).get_json()["token"]
+adm = client.post("/api/auth/login", json={"email": "admin@malhu.com", "password": "admin123", "portal": "admin"}).get_json()["token"]
 ana = client.post("/api/auth/register", json={"name": "Ana", "email": "ana@mail.com", "password": "123456"}).get_json()["token"]
 DEV = {"X-Device-Key": "clave-secreta"}
 

@@ -27,7 +27,9 @@ def check(name, cond):
 
 
 def login(email, password, **extra):
-    return client.post("/api/auth/login", json={"email": email, "password": password, **extra})
+    # Los administradores entran por el portal "admin"; los clientes, por la tienda
+    portal = "admin" if email.startswith("admin@") else "tienda"
+    return client.post("/api/auth/login", json={"email": email, "password": password, "portal": portal, **extra})
 
 
 def auth(token):

@@ -26,14 +26,18 @@ export default function Login() {
     try {
       const user = await login(email, password, needsOtp ? otp : undefined)
       if (user?.requiresOtp) {
-        // Las cuentas con verificación en dos pasos solo entran por el panel de administración
-        if (!IS_ADMIN_APP) throw new Error('Esta cuenta solo puede iniciar sesión desde el panel de administración.')
+        // Solo llega aquí una cuenta de administrador entrando por el panel
         setNeedsOtp(true)
         return
       }
-      if (IS_ADMIN_APP && user?.role !== 'admin') {
+      // El backend ya rechaza las cuentas que no son de este portal; esto es una segunda barrera
+      if (IS_ADMIN_APP !== (user?.role === 'admin')) {
         logout()
-        throw new Error('Esta cuenta no tiene acceso al panel de administración.')
+        throw new Error(
+          IS_ADMIN_APP
+            ? 'Esta cuenta no tiene acceso al panel de administración.'
+            : 'Las cuentas de administrador inician sesión en el panel de administración.'
+        )
       }
       toast.success('Sesión iniciada')
       navigate('/')

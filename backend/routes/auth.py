@@ -55,12 +55,18 @@ def register():
 def login():
     """
     Inicia sesión. Tras varios fallos seguidos el correo se bloquea unos minutos.
+
+    "portal" indica desde dónde se entra: "admin" (el panel de administración) o "tienda"
+    (valor por defecto). Las cuentas de administrador SOLO pueden entrar por el panel y las
+    de clientes SOLO por la tienda, así que una cuenta admin nunca obtiene sesión en la tienda.
+
     Si la cuenta es de administrador y tiene verificación en dos pasos, la primera
     llamada (sin "otp") responde {"requires_otp": true} y la segunda lleva el código.
     """
     data = request.get_json() or {}
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
+    portal = "admin" if data.get("portal") == "admin" else "tienda"
     key = f"login:{email}"
 
     wait = minutes_locked(key)
@@ -75,6 +81,12 @@ def login():
 
     if not user.active:
         return jsonify({"error": "Tu cuenta está desactivada. Contacta al administrador."}), 403
+
+    # La contraseña es correcta, pero la cuenta no pertenece a este portal: no se da sesión
+    if user.role == "admin" and portal != "admin":
+        return jsonify({"error": "Las cuentas de administrador inician sesión en el panel de administración, no en la tienda."}), 403
+    if user.role != "admin" and portal == "admin":
+        return jsonify({"error": "Esta cuenta no tiene acceso al panel de administración."}), 403
 
     if user.role == "admin" and user.totp_enabled:
         otp = data.get("otp")
