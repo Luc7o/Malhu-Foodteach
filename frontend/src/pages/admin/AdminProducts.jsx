@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext'
 import AdminNav from '../../components/AdminNav'
 import { EmptyState, PageLoader, ProductImage, Spinner } from '../../components/ui'
 import { money } from '../../lib/format'
+import { CATEGORIES } from '../../lib/categories'
 
 const MAX_IMAGE_MB = 5
 
@@ -70,8 +71,8 @@ function ProductForm({ initial, onCancel, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink-900/40 p-4" role="dialog" aria-modal="true">
-      <form onSubmit={handleSubmit} className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-pop">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink-900/40 p-4" role="dialog" aria-modal="true">
+      <form onSubmit={handleSubmit} className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-pop">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink-900">{isEdit ? 'Editar producto' : 'Nuevo producto'}</h2>
           <button type="button" onClick={onCancel} className="rounded-lg p-1.5 text-ink-400 hover:bg-ink-100" aria-label="Cerrar">
@@ -90,7 +91,10 @@ function ProductForm({ initial, onCancel, onSaved }) {
           </div>
           <div>
             <label className="label">Categoría</label>
-            <input className="input" value={form.category} onChange={(e) => set('category', e.target.value)} placeholder="Sándwiches" />
+            <input className="input" list="categorias-malhu" value={form.category} onChange={(e) => set('category', e.target.value)} placeholder="Nutracéuticos" />
+            <datalist id="categorias-malhu">
+              {CATEGORIES.map((c) => <option key={c.name} value={c.name} />)}
+            </datalist>
           </div>
           <div>
             <label className="label">Imagen</label>
