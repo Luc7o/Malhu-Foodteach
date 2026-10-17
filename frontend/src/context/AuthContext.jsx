@@ -20,8 +20,10 @@ export function AuthProvider({ children }) {
     localStorage.setItem('user', JSON.stringify(data.user))
   }
 
-  async function login(email, password) {
-    const data = await api.login(email, password)
+  // Devuelve el usuario, o { requiresOtp: true } si la cuenta pide el código de 2 pasos
+  async function login(email, password, otp) {
+    const data = await api.login(email, password, otp)
+    if (data.requires_otp) return { requiresOtp: true }
     persist(data)
     return data.user
   }

@@ -6,7 +6,7 @@ from flask_jwt_extended import get_jwt_identity
 import mqtt_bridge
 from extensions import db
 from models import AdminKey, Locker, LockerBox, LockerEvent, OpenCommand, PickupCode
-from utils import admin_required, qr_data_url
+from utils import admin_required, page_args, paged, qr_data_url
 
 lockers_bp = Blueprint("lockers", __name__, url_prefix="/api")
 
@@ -134,6 +134,24 @@ def update_locker(locker_id):
 
     db.session.commit()
     return jsonify(_admin_locker_dict(locker))
+
+
+@lockers_bp.get("/admin/lockers/<locker_id>/events")
+@admin_required
+def locker_events(locker_id):
+    """Historial completo de un locker, paginado. ?kind=retiro&page=2&per_page=30"""
+    locker = Locker.query.get_or_404(locker_id)
+    query = LockerEvent.query.filter_by(locker_id=locker.id)
+    kind = request.args.get("kind")
+    if kind:
+        query = query.filter(LockerEvent.kind == kind)
+    page, per_page = page_args(request.args, default=30, maximum=100)
+    total = query.count()
+    rows = (
+        query.order_by(LockerEvent.created_at.desc())
+        .offset((page - 1) * per_page).limit(per_page).all()
+    )
+    return jsonify(paged(total, page, per_page, [e.to_dict() for e in rows]))
 
 
 @lockers_bp.post("/admin/lockers/<locker_id>/rotate-key")

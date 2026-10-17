@@ -13,6 +13,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [needsOtp, setNeedsOtp] = useState(false)
+  const [otp, setOtp] = useState('')
   const { login, logout } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
@@ -22,10 +24,20 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      const user = await login(email, password)
-      if (IS_ADMIN_APP && user?.role !== 'admin') {
+      const user = await login(email, password, needsOtp ? otp : undefined)
+      if (user?.requiresOtp) {
+        // Solo llega aquí una cuenta de administrador entrando por el panel
+        setNeedsOtp(true)
+        return
+      }
+      // El backend ya rechaza las cuentas que no son de este portal; esto es una segunda barrera
+      if (IS_ADMIN_APP !== (user?.role === 'admin')) {
         logout()
-        throw new Error('Esta cuenta no tiene acceso al panel de administración.')
+        throw new Error(
+          IS_ADMIN_APP
+            ? 'Esta cuenta no tiene acceso al panel de administración.'
+            : 'Las cuentas de administrador inician sesión en el panel de administración.'
+        )
       }
       toast.success('Sesión iniciada')
       navigate('/')
@@ -88,10 +100,29 @@ export default function Login() {
           </div>
         </div>
 
+        {IS_ADMIN_APP && needsOtp && (
+          <div>
+            <label htmlFor="otp" className="label">Código de verificación</label>
+            <input
+              id="otp"
+              className="input tracking-[0.4em]"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="000000"
+              autoFocus
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+              required
+            />
+            <p className="mt-1.5 text-xs text-ink-400">Abre tu app autenticadora y escribe el código de 6 dígitos.</p>
+          </div>
+        )}
+
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
 
-        <button type="submit" disabled={loading} className="btn-primary w-full !py-3">
-          {loading ? <Spinner className="h-4 w-4" /> : 'Entrar'}
+        <button type="submit" disabled={loading || (needsOtp && otp.length !== 6)} className="btn-primary w-full !py-3">
+          {loading ? <Spinner className="h-4 w-4" /> : needsOtp ? 'Verificar y entrar' : 'Entrar'}
         </button>
       </form>
 

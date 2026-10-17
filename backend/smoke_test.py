@@ -50,7 +50,7 @@ check("email duplicado (mayúsculas) rechazado",
       client.post("/api/auth/register", json={"name": "X", "email": "ana@mail.com", "password": "123456"}).status_code == 409)
 check("contraseña corta rechazada",
       client.post("/api/auth/register", json={"name": "X", "email": "x@mail.com", "password": "123"}).status_code == 400)
-adm = client.post("/api/auth/login", json={"email": "admin@malhu.com", "password": "admin123"}).get_json()["token"]
+adm = client.post("/api/auth/login", json={"email": "admin@malhu.com", "password": "admin123", "portal": "admin"}).get_json()["token"]
 
 # --- pedido ---
 r = client.post("/api/orders", headers=auth(ana), json={"locker_id": locker_id, "items": [{"product_id": product_id, "quantity": 2}]})
@@ -145,7 +145,7 @@ with app.app_context():
 
 # --- admin ---
 s = client.get("/api/admin/stats", headers=auth(adm)).get_json()
-check("stats con 7 días de ventas", len(s["ventas_por_dia"]) == 7)
+check("stats con 7 días de ventas", len(s["ventas"]) == 7)
 check("stats con top productos", s["top_productos"][0]["name"] == "Sándwich")
 lk_admin = client.get("/api/admin/lockers", headers=auth(adm)).get_json()[0]
 check("admin ve device_key y cajas", lk_admin["device_key"] == key and len(lk_admin["boxes"]) == 3)

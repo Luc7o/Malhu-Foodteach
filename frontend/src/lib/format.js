@@ -36,3 +36,21 @@ export function useCountdown(iso) {
   }, [iso])
   return iso ? new Date(iso).getTime() - now : null
 }
+
+export function formatDate(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+/** "hace 5 min", "hace 2 h", "hace 3 días" */
+export function timeAgo(iso) {
+  if (!iso) return 'nunca'
+  const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000))
+  if (seconds < 60) return 'hace unos segundos'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `hace ${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `hace ${hours} h`
+  const days = Math.floor(hours / 24)
+  return `hace ${days} ${days === 1 ? 'día' : 'días'}`
+}
