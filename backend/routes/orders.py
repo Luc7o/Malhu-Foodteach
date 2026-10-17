@@ -58,7 +58,7 @@ def create_order():
         if not product or not product.active:
             db.session.rollback()
             return jsonify({"error": "Uno de los productos ya no está disponible"}), 400
-        if product.stock < quantity:
+        if product.sold_out or product.stock < quantity:
             db.session.rollback()
             return jsonify({"error": f"Stock insuficiente para {product.name}"}), 400
 
@@ -97,7 +97,7 @@ def pay_order(order_id):
     # Vuelve a comprobar el stock: pudo cambiar desde que se creó el pedido
     for item in order.items:
         product = Product.query.filter_by(id=item.product_id).with_for_update().first()
-        if not product or not product.active or product.stock < item.quantity:
+        if not product or not product.active or product.sold_out or product.stock < item.quantity:
             name = product.name if product else "un producto"
             return jsonify({"error": f"Ya no hay stock suficiente de {name}"}), 409
 

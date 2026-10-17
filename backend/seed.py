@@ -6,7 +6,7 @@ import os
 
 from app import create_app
 from extensions import db
-from models import User, Product, Locker, LockerBox
+from models import Category, User, Product, Locker, LockerBox
 
 app = create_app()
 
@@ -45,12 +45,19 @@ with app.app_context():
         for n in range(1, 7):
             db.session.add(LockerBox(locker_id=locker.id, box_number=n, status="libre"))
 
-    # Productos de prueba
+    # Categorías y productos de prueba
     if Product.query.count() == 0:
-        for name, description, category, price, stock in PRODUCTS:
+        categories = {}
+        for position, (_, _, category, _, _) in enumerate(PRODUCTS):
+            if category not in categories:
+                categories[category] = Category(name=category, sort_order=len(categories))
+                db.session.add(categories[category])
+        db.session.flush()
+        for position, (name, description, category, price, stock) in enumerate(PRODUCTS):
             db.session.add(Product(
                 name=name, description=description, category=category,
-                price=price, stock=stock,
+                category_id=categories[category].id,
+                price=price, stock=stock, sort_order=position,
             ))
 
     db.session.commit()

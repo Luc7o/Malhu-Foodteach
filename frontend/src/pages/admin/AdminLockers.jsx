@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { DoorOpen, History, KeyRound, Plus, RefreshCw, Wifi, WifiOff, X } from 'lucide-react'
-import { api } from '../../api'
+import { adminApi as api } from '../../adminApi'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import AdminNav from '../../components/AdminNav'
+import { useConfirm } from '../../components/ConfirmDialog'
+import Modal from '../../components/Modal'
+import Pagination from '../../components/Pagination'
 import { EmptyState, LockerBay, PageLoader, Spinner } from '../../components/ui'
-import { formatDateTime } from '../../lib/format'
+import { formatDateTime, timeAgo } from '../../lib/format'
 
 const BOX_LABEL = { libre: 'Libre', ocupado: 'Ocupado', mantenimiento: 'Mantenimiento' }
 
@@ -20,6 +23,8 @@ const EVENT_INFO = {
   codigo_restaurado: { label: 'Código devuelto al cliente', tone: 'text-brand-700' },
   puerta_forzada: { label: 'Puerta abierta sin autorización', tone: 'text-red-600 font-semibold' },
   arranque: { label: 'Locker encendido', tone: 'text-ink-500' },
+  sin_senal: { label: 'Perdió la señal', tone: 'text-red-600 font-semibold' },
+  en_linea: { label: 'Volvió a estar en línea', tone: 'text-led-ok' },
 }
 
 function NewLockerForm({ onCancel, onCreated }) {
@@ -88,7 +93,59 @@ function NewLockerForm({ onCancel, onCreated }) {
   )
 }
 
-function LockerCard({ locker, onSetStatus, onRotate, onOpenBox, openingId, busy }) {
+function EventRow({ ev }) {
+  const info = EVENT_INFO[ev.kind] || { label: ev.kind, tone: 'text-ink-700' }
+  return (
+    <li className="flex items-baseline justify-between gap-3 text-xs">
+      <span className={info.tone}>
+        {info.label}
+        {ev.box_number ? ` · caja ${ev.box_number}` : ''}
+        {ev.detail ? <span className="text-ink-400"> — {ev.detail}</span> : null}
+      </span>
+      <span className="shrink-0 text-ink-400">{formatDateTime(ev.created_at)}</span>
+    </li>
+  )
+}
+
+function HistoryModal({ locker, onClose }) {
+  const { token } = useAuth()
+  const toast = useToast()
+  const [kind, setKind] = useState('')
+  const [page, setPage] = useState(1)
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    api.getLockerEvents(token, locker.id, { kind, page, per_page: 30 })
+      .then((res) => { if (!cancelled) setData(res) })
+      .catch((e) => { if (!cancelled) toast.error(e.message) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, locker.id, kind, page])
+
+  return (
+    <Modal title={`Historial · ${locker.name}`} onClose={onClose} size="lg">
+      <div className="mb-4">
+        <select className="input sm:w-64" aria-label="Filtrar por tipo de movimiento" value={kind} onChange={(e) => { setKind(e.target.value); setPage(1) }}>
+          <option value="">Todos los movimientos</option>
+          {Object.entries(EVENT_INFO).map(([value, info]) => <option key={value} value={value}>{info.label}</option>)}
+        </select>
+      </div>
+      {!data ? (
+        <PageLoader />
+      ) : data.items.length === 0 ? (
+        <p className="py-6 text-center text-sm text-ink-400">No hay movimientos con ese filtro.</p>
+      ) : (
+        <>
+          <ul className="space-y-2">{data.items.map((ev) => <EventRow key={ev.id} ev={ev} />)}</ul>
+          <Pagination page={data.page} pages={data.pages} total={data.total} perPage={data.per_page} onPage={setPage} />
+        </>
+      )}
+    </Modal>
+  )
+}
+
+function LockerCard({ locker, onSetStatus, onRotate, onOpenBox, onHistory, openingId, busy }) {
   const events = locker.events || []
   return (
     <div className="panel p-5">
@@ -106,6 +163,9 @@ function LockerCard({ locker, onSetStatus, onRotate, onOpenBox, openingId, busy 
               </span>
             )}
           </div>
+          <p className="text-xs text-ink-400">
+            {locker.last_seen ? `Último aviso ${timeAgo(locker.last_seen)}` : 'Aún no se conectó'}
+          </p>
           <p className="text-xs text-ink-400">{locker.address || 'Sin dirección'}</p>
           <p className="mt-0.5 font-mono text-xs text-ink-400">{locker.device_id}</p>
         </div>
@@ -151,28 +211,19 @@ function LockerCard({ locker, onSetStatus, onRotate, onOpenBox, openingId, busy 
         ))}
       </ul>
 
-      {events.length > 0 && (
-        <details className="mt-4 text-sm">
-          <summary className="flex cursor-pointer select-none items-center gap-1.5 text-xs font-semibold text-ink-500 hover:text-ink-800">
-            <History className="h-3.5 w-3.5" aria-hidden="true" /> Actividad reciente
-          </summary>
-          <ul className="mt-2 space-y-1.5">
-            {events.map((ev) => {
-              const info = EVENT_INFO[ev.kind] || { label: ev.kind, tone: 'text-ink-700' }
-              return (
-                <li key={ev.id} className="flex items-baseline justify-between gap-3 text-xs">
-                  <span className={info.tone}>
-                    {info.label}
-                    {ev.box_number ? ` · caja ${ev.box_number}` : ''}
-                    {ev.detail ? <span className="text-ink-400"> — {ev.detail}</span> : null}
-                  </span>
-                  <span className="shrink-0 text-ink-400">{formatDateTime(ev.created_at)}</span>
-                </li>
-              )
-            })}
-          </ul>
-        </details>
-      )}
+      <details className="mt-4 text-sm">
+        <summary className="flex cursor-pointer select-none items-center gap-1.5 text-xs font-semibold text-ink-500 hover:text-ink-800">
+          <History className="h-3.5 w-3.5" aria-hidden="true" /> Actividad reciente
+        </summary>
+        {events.length === 0 ? (
+          <p className="mt-2 text-xs text-ink-400">Todavía no hay movimientos.</p>
+        ) : (
+          <ul className="mt-2 space-y-1.5">{events.map((ev) => <EventRow key={ev.id} ev={ev} />)}</ul>
+        )}
+        <button onClick={() => onHistory(locker)} className="mt-3 text-xs font-semibold text-brand-600 hover:underline">
+          Ver historial completo
+        </button>
+      </details>
     </div>
   )
 }
@@ -180,12 +231,14 @@ function LockerCard({ locker, onSetStatus, onRotate, onOpenBox, openingId, busy 
 export default function AdminLockers() {
   const { token } = useAuth()
   const toast = useToast()
+  const confirm = useConfirm()
   const [lockers, setLockers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [newKey, setNewKey] = useState(null)
   const [busyId, setBusyId] = useState(null)
   const [openingId, setOpeningId] = useState(null)
+  const [history, setHistory] = useState(null)
 
   function load() {
     setLoading(true)
@@ -223,7 +276,13 @@ export default function AdminLockers() {
   }
 
   async function handleRotate(locker) {
-    if (!confirm(`Esto invalida la clave actual del ESP32 de "${locker.name}". ¿Continuar?`)) return
+    const ok = await confirm({
+      title: `¿Rotar la clave de «${locker.name}»?`,
+      message: 'La clave actual del ESP32 deja de funcionar. Tendrás que copiar la nueva al firmware o el locker quedará sin conexión.',
+      confirmText: 'Rotar clave',
+      tone: 'danger',
+    })
+    if (!ok) return
     setBusyId(locker.id)
     try {
       const updated = await api.rotateLockerKey(token, locker.id)
@@ -237,7 +296,15 @@ export default function AdminLockers() {
   }
 
   async function handleOpenBox(locker, box) {
-    if (box.status === 'ocupado' && !confirm(`La caja ${box.box_number} tiene un pedido de un cliente. ¿Abrirla de todos modos?`)) return
+    if (box.status === 'ocupado') {
+      const ok = await confirm({
+        title: `¿Abrir la caja ${box.box_number}?`,
+        message: 'Tiene el pedido de un cliente guardado. Si la abres, la comida queda a la vista de cualquiera.',
+        confirmText: 'Abrir de todos modos',
+        tone: 'danger',
+      })
+      if (!ok) return
+    }
     setOpeningId(box.id)
     try {
       await api.openBox(token, locker.id, box.box_number)
@@ -276,12 +343,15 @@ export default function AdminLockers() {
               onSetStatus={handleSetStatus}
               onRotate={handleRotate}
               onOpenBox={handleOpenBox}
+              onHistory={setHistory}
               openingId={openingId}
               busy={busyId === l.id}
             />
           ))}
         </div>
       )}
+
+      {history && <HistoryModal locker={history} onClose={() => setHistory(null)} />}
 
       {showForm && <NewLockerForm onCancel={() => setShowForm(false)} onCreated={handleCreated} />}
 

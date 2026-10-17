@@ -21,7 +21,7 @@ import qrcode
 from flask import current_app
 
 from extensions import db
-from models import AlertState, Locker, Product, User
+from models import AlertState, Locker, LockerEvent, Product, User
 
 _MAIL_KEYS = ("MAIL_SERVER", "MAIL_PORT", "MAIL_USE_SSL", "MAIL_USERNAME", "MAIL_PASSWORD", "MAIL_FROM")
 
@@ -173,12 +173,16 @@ def check_alerts():
         key = f"locker_offline:{locker.id}"
         if not locker.is_online():
             if _arm(key):
+                db.session.add(LockerEvent(locker_id=locker.id, kind="sin_senal", detail="El locker dejó de reportar"))
+                db.session.commit()
                 last = locker.last_seen.strftime("%d/%m/%Y %H:%M") + " (hora UTC)"
                 alert_admin(
                     f"{locker.name} sin señal",
                     f"El locker {locker.name} no reporta desde {last}. Revisa la energía y el WiFi del ESP32.",
                 )
         elif _disarm(key):
+            db.session.add(LockerEvent(locker_id=locker.id, kind="en_linea", detail="El locker volvió a reportar"))
+            db.session.commit()
             alert_admin(f"{locker.name} volvió a estar en línea", f"El locker {locker.name} ya está reportando.")
 
     threshold = current_app.config["LOW_STOCK_THRESHOLD"]
