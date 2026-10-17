@@ -55,7 +55,7 @@ function NewLockerForm({ onCancel, onCreated }) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink-900/40 p-4" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink-900/40 p-4" role="dialog" aria-modal="true">
       <form onSubmit={handleSubmit} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-pop">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink-900">Nuevo locker</h2>
@@ -356,7 +356,7 @@ export default function AdminLockers() {
       {showForm && <NewLockerForm onCancel={() => setShowForm(false)} onCreated={handleCreated} />}
 
       {newKey && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink-900/40 p-4" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink-900/40 p-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-pop">
             <h2 className="mb-2 text-lg font-bold text-ink-900">Clave del dispositivo</h2>
             <p className="mb-3 text-sm text-ink-500">

@@ -12,6 +12,7 @@ import Modal from '../../components/Modal'
 import { ADMIN_BASE } from '../../lib/appMode'
 import { EmptyState, PageLoader, ProductImage, Spinner } from '../../components/ui'
 import { money } from '../../lib/format'
+import { CATEGORIES } from '../../lib/categories'
 
 const MAX_IMAGE_MB = 5
 
