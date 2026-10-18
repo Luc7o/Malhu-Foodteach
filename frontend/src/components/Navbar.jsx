@@ -62,8 +62,8 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-brand-900/95 pt-[env(safe-area-inset-top)] backdrop-blur">
-      <nav className="mx-auto flex max-w-6xl 2xl:max-w-7xl items-center gap-2 px-3 py-3 sm:px-4">
+    <header className="sticky top-0 z-50 bg-brand-900/95 backdrop-blur">
+      <nav className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3">
         <Link to="/" className="mr-3" onClick={close} aria-label="MALHÚ, ir al inicio">
           <Logo tone="light" tagline={false} />
         </Link>
@@ -115,7 +115,7 @@ export default function Navbar() {
       </nav>
 
       {open && (
-        <div className="animate-fade-in max-h-[calc(100dvh-4.5rem)] overflow-y-auto border-t border-white/10 px-4 pb-4 lg:hidden">
+        <div className="animate-fade-in border-t border-white/10 px-4 pb-4 lg:hidden">
           <div className="flex flex-col gap-1 pt-2">
             <NavItem to="/" end onClick={close}>Inicio</NavItem>
             {LINKS.map(([to, label]) => (

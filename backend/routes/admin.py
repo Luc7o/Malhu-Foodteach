@@ -8,7 +8,7 @@ from sqlalchemy import case, func, or_
 from sqlalchemy.orm import selectinload
 
 from extensions import db
-from models import Locker, LockerBox, Order, OrderItem, Product, User
+from models import GuestContact, Locker, LockerBox, Order, OrderItem, Product, User
 from routes.auth import verify_totp
 from security import clear_attempts, lock_message, minutes_locked, register_failure
 from services import cancel_paid_order
@@ -38,7 +38,7 @@ def _parse_day(value):
 def _orders_query():
     """Pedidos con los filtros de la URL: status, locker_id, q, date_from, date_to."""
     args = request.args
-    query = Order.query.join(User, Order.user_id == User.id)
+    query = Order.query.join(User, Order.user_id == User.id).outerjoin(GuestContact, GuestContact.user_id == User.id)
 
     status = args.get("status")
     if status in ORDER_STATUSES:
@@ -51,6 +51,7 @@ def _orders_query():
         like = f"%{text}%"
         query = query.filter(or_(
             Order.id.ilike(f"{text}%"), User.name.ilike(like), User.email.ilike(like),
+            GuestContact.email.ilike(like),
         ))
 
     start, end = _parse_day(args.get("date_from")), _parse_day(args.get("date_to"))

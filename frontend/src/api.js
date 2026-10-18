@@ -62,6 +62,9 @@ export const api = {
 
   register: (name, email, password) =>
     request('/auth/register', { method: 'POST', body: { name, email, password } }),
+  // Compra como invitado: sin contraseña, solo nombre y correo
+  guestSession: (name, email) =>
+    request('/auth/guest', { method: 'POST', body: { name, email } }),
   // `otp` solo se usa en el panel de administración (verificación en dos pasos)
   login: (email, password, otp) =>
     request('/auth/login', { method: 'POST', body: { email, password, portal: PORTAL, ...(otp ? { otp } : {}) } }),

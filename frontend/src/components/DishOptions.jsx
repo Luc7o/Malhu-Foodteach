@@ -58,7 +58,7 @@ export default function DishOptions({ groups, selected, onToggle }) {
                 {rule(g)}{g.max_select > 1 && ` · ${chosen.length}/${g.max_select}`}
               </span>
             </legend>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role={single ? 'radiogroup' : 'group'} aria-label={g.name}>
+            <div className="grid gap-2 sm:grid-cols-2" role={single ? 'radiogroup' : 'group'} aria-label={g.name}>
               {g.items.map((item) => {
                 const on = chosen.some((i) => i.id === item.id)
                 return (

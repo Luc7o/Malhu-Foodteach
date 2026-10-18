@@ -1,12 +1,14 @@
-from datetime import datetime
+import secrets
+import uuid
+from datetime import datetime, timedelta
 
 import pyotp
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from sqlalchemy import func
 
 from extensions import db
-from models import User
+from models import GuestContact, User
 from security import clear_attempts, lock_message, minutes_locked, register_failure
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
@@ -49,6 +51,51 @@ def register():
     db.session.commit()
 
     return jsonify({"token": _token_for(user), "user": user.to_dict()}), 201
+
+
+@auth_bp.post("/guest")
+def guest():
+    """
+    Compra como invitado: no pide contraseña. Crea un usuario "invitado" con el nombre y el
+    correo que escribió el cliente y devuelve una sesión para que pueda crear y pagar su pedido.
+    Si el correo ya pertenece a una cuenta, se le pide iniciar sesión (así nadie puede ver los
+    pedidos de otra persona escribiendo su correo).
+    """
+    data = request.get_json() or {}
+    name = (data.get("name") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+
+    if not name or not email:
+        return jsonify({"error": "Escribe tu nombre y tu correo para continuar"}), 400
+    if len(name) > 120 or len(email) > 120:
+        return jsonify({"error": "El nombre o el correo es demasiado largo"}), 400
+    if "@" not in email or "." not in email.split("@")[-1]:
+        return jsonify({"error": "Ingresa un correo válido"}), 400
+
+    if User.query.filter(func.lower(User.email) == email).first():
+        return jsonify({
+            "error": "Ese correo ya tiene una cuenta. Inicia sesión para continuar con tu pedido."
+        }), 409
+
+    user = User(
+        name=name,
+        email=f"invitado-{uuid.uuid4().hex}@invitado.malhu.local",  # único e interno
+        role="invitado",
+    )
+    user.set_password(secrets.token_urlsafe(24))  # nadie la conoce: no se puede iniciar sesión
+    db.session.add(user)
+    db.session.flush()
+    db.session.add(GuestContact(user_id=user.id, email=email))
+    db.session.commit()
+
+    # La sesión dura lo que el código de retiro + 1 día, para que pueda volver a ver su pedido
+    hours = current_app.config["PICKUP_CODE_EXPIRATION_HOURS"] + 24
+    token = create_access_token(
+        identity=user.id,
+        additional_claims={"role": user.role},
+        expires_delta=timedelta(hours=hours),
+    )
+    return jsonify({"token": token, "user": user.to_dict()}), 201
 
 
 @auth_bp.post("/login")

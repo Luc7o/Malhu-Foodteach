@@ -142,7 +142,7 @@ def pay_order(order_id):
     user = db.session.get(User, user_id)
     payload = {
         "token_id": data.get("token_id"),
-        "email": user.email if user else None,
+        "email": user.contact_email if user else None,
         "name": user.name if user else None,
     }
     try:

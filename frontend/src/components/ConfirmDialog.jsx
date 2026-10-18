@@ -49,7 +49,7 @@ export function ConfirmProvider({ children }) {
           aria-labelledby="confirm-title"
           onMouseDown={(e) => e.target === e.currentTarget && close(false)}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-pop sm:p-6">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-pop">
             <div className="flex gap-3">
               <span
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
@@ -63,7 +63,7 @@ export function ConfirmProvider({ children }) {
                 {dialog.message && <p className="mt-1 text-sm text-ink-500">{dialog.message}</p>}
               </div>
             </div>
-            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <div className="mt-6 flex justify-end gap-2">
               <button ref={cancelRef} onClick={() => close(false)} className="btn-secondary">
                 {dialog.cancelText || 'Volver'}
               </button>

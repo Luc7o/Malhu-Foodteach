@@ -94,7 +94,7 @@ class IzipayProvider:
             "currency": "PEN",
             "orderId": order.id,
             "customer": {
-                "email": user.email,
+                "email": getattr(user, "contact_email", None) or user.email,
                 "billingDetails": {"firstName": user.name},
             },
         }

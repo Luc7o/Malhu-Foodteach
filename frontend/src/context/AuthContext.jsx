@@ -33,6 +33,14 @@ export function AuthProvider({ children }) {
     persist(data)
   }
 
+  // Compra como invitado: crea una sesión con solo nombre y correo. Devuelve { token, user }
+  // para poder seguir con el pedido sin esperar a que React actualice el estado.
+  async function guestLogin(name, email) {
+    const data = await api.guestSession(name, email)
+    persist(data)
+    return data
+  }
+
   function logout() {
     setToken(null)
     setUser(null)
@@ -58,7 +66,9 @@ export function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ token, user, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ token, user, isGuest: user?.role === 'invitado', login, register, guestLogin, logout }}
+    >
       {children}
     </AuthContext.Provider>
   )

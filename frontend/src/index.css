@@ -6,32 +6,6 @@
 
 html {
   scroll-behavior: smooth;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
-
-img, video, svg {
-  max-width: 100%;
-}
-
-body {
-  overflow-x: clip;
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-}
-
-/* Móvil: 16px en campos evita el zoom automático de iOS al enfocar */
-@media (max-width: 639px) {
-  input, select, textarea, .input {
-    font-size: 16px;
-  }
-}
-
-/* Pantallas táctiles: áreas de toque cómodas (≈44px) */
-@media (pointer: coarse) {
-  .btn, .chip {
-    min-height: 44px;
-  }
 }
 
 body {

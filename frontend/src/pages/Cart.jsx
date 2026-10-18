@@ -45,7 +45,9 @@ function LockerOption({ locker, selected, onSelect }) {
 
 export default function Cart() {
   const { items, removeItem, incrementItem, total, clearCart } = useCart()
-  const { token } = useAuth()
+  const { token, user, isGuest, guestLogin, logout } = useAuth()
+  const [guestName, setGuestName] = useState('')
+  const [guestEmail, setGuestEmail] = useState('')
   const [lockers, setLockers] = useState([])
   const [lockerId, setLockerId] = useState('')
   const [error, setError] = useState('')
@@ -68,23 +70,28 @@ export default function Cart() {
 
   async function handleCheckout() {
     setError('')
-    if (!token) {
-      toast.info('Inicia sesión para completar tu pedido')
-      navigate('/login')
-      return
-    }
     if (!lockerId) {
       setError('Elige un locker para retirar tu pedido')
       return
     }
+    if (!token && (!guestName.trim() || !guestEmail.trim())) {
+      setError('Escribe tu nombre y tu correo para continuar, o inicia sesión.')
+      return
+    }
     setSubmitting(true)
     try {
+      // Sin sesión: se compra como invitado con nombre y correo (sin crear cuenta)
+      let authToken = token
+      if (!authToken) {
+        const session = await guestLogin(guestName.trim(), guestEmail.trim())
+        authToken = session.token
+      }
       const orderItems = items.map((i) => ({
         product_id: i.product.id,
         quantity: i.quantity,
         option_ids: i.options.map((o) => o.id),
       }))
-      const order = await api.createOrder(token, orderItems, lockerId)
+      const order = await api.createOrder(authToken, orderItems, lockerId)
       clearCart()
       navigate(`/orders/${order.id}`)
     } catch (e) {
@@ -114,20 +121,20 @@ export default function Cart() {
     <div className="mx-auto max-w-5xl px-4 py-10">
       <h1 className="mb-6 text-3xl font-bold text-ink-900">Tu carrito</h1>
 
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid gap-8 md:grid-cols-[1fr_20rem]">
         <ul className="divide-y divide-ink-200 self-start rounded-2xl border border-ink-200 bg-white">
           {items.map((i) => {
             const price = unitPrice(i.product, i.options)
             const totals = nutritionTotals(i.product, i.options)
             return (
-            <li key={i.key} className="flex flex-wrap items-center gap-x-3 gap-y-3 p-3 sm:flex-nowrap sm:gap-4 sm:p-4">
+            <li key={i.key} className="flex items-center gap-4 p-4">
               <ProductImage
                 src={i.product.image_url}
                 alt={i.product.name}
                 category={i.product.category}
-                className="h-14 w-14 shrink-0 rounded-lg object-cover sm:h-16 sm:w-16"
+                className="h-16 w-16 shrink-0 rounded-lg object-cover"
               />
-              <div className="min-w-0 flex-1 basis-[calc(100%-5rem)] sm:basis-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-ink-900">{i.product.name}</p>
                 {i.options.length > 0 && (
                   <p className="text-sm text-ink-600">{i.options.map((o) => o.name).join(' · ')}</p>
@@ -160,7 +167,7 @@ export default function Cart() {
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
-              <p className="ml-auto w-20 text-right font-display font-bold text-ink-900 sm:ml-0">
+              <p className="w-20 text-right font-display font-bold text-ink-900">
                 {money(price * i.quantity)}
               </p>
               <button
@@ -175,7 +182,7 @@ export default function Cart() {
           })}
         </ul>
 
-        <aside className="panel h-fit space-y-5 p-4 sm:p-5 md:sticky md:top-20">
+        <aside className="panel sticky top-20 h-fit space-y-5 p-5">
           <div>
             <h2 className="mb-2 text-sm font-semibold text-ink-700">Retira en</h2>
             {loadingLockers ? (
@@ -197,6 +204,57 @@ export default function Cart() {
             <span className="font-semibold text-ink-700">Total</span>
             <span className="font-display text-2xl font-bold text-ink-900">{money(total)}</span>
           </div>
+
+          {!token && (
+            <div className="space-y-3 border-t border-ink-200 pt-4">
+              <div>
+                <h2 className="text-sm font-semibold text-ink-700">Tus datos</h2>
+                <p className="mt-0.5 text-xs text-ink-500">
+                  Compra sin crear cuenta. Te enviaremos el código QR a tu correo.
+                </p>
+              </div>
+              <div>
+                <label htmlFor="guest-name" className="mb-1 block text-xs font-medium text-ink-600">Nombre</label>
+                <input
+                  id="guest-name"
+                  type="text"
+                  autoComplete="name"
+                  maxLength={120}
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  className="w-full rounded-[10px] border border-ink-200 px-3 py-2 text-sm text-ink-900 focus:border-ink-900 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="guest-email" className="mb-1 block text-xs font-medium text-ink-600">Correo</label>
+                <input
+                  id="guest-email"
+                  type="email"
+                  autoComplete="email"
+                  maxLength={120}
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  className="w-full rounded-[10px] border border-ink-200 px-3 py-2 text-sm text-ink-900 focus:border-ink-900 focus:outline-none"
+                />
+              </div>
+              <p className="text-xs text-ink-500">
+                ¿Ya tienes cuenta?{' '}
+                <Link to="/login" className="font-semibold text-ink-900 underline">Inicia sesión</Link>
+              </p>
+            </div>
+          )}
+
+          {token && isGuest && (
+            <div className="border-t border-ink-200 pt-4 text-xs text-ink-500">
+              <p>
+                Comprando como <span className="font-semibold text-ink-800">{user?.name}</span>
+                {user?.email ? ` (${user.email})` : ''}.
+              </p>
+              <button type="button" onClick={logout} className="mt-1 font-semibold text-ink-900 underline">
+                No soy yo
+              </button>
+            </div>
+          )}
 
           {error && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>

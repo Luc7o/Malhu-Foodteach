@@ -34,6 +34,20 @@ class User(db.Model):
     totp_secret = db.Column(db.String(64), nullable=True)
     totp_enabled = db.Column(db.Boolean, nullable=False, default=False)
 
+    # Solo para invitados (role "invitado"): su correo real vive en guest_contact
+    guest_contact = db.relationship("GuestContact", uselist=False, lazy="selectin")
+
+    @property
+    def is_guest(self):
+        return self.role == "invitado"
+
+    @property
+    def contact_email(self):
+        """Correo real de contacto. En clientes es su email; en invitados, el que escribieron al comprar."""
+        if self.guest_contact and self.guest_contact.email:
+            return self.guest_contact.email
+        return self.email
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -44,9 +58,22 @@ class User(db.Model):
         return {
             "id": self.id,
             "name": self.name,
-            "email": self.email,
+            "email": self.contact_email,
             "role": self.role,
         }
+
+
+class GuestContact(db.Model):
+    """
+    Correo real de quien compra como invitado (sin registrarse).
+    Tabla nueva: db.create_all() la crea sola al arrancar, no hay que migrar nada.
+    El usuario invitado guarda un email interno único (para no chocar con cuentas reales).
+    """
+    __tablename__ = "guest_contacts"
+
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), primary_key=True)
+    email = db.Column(db.String(120), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class Category(db.Model):
@@ -376,8 +403,9 @@ class Order(db.Model):
             data["box_number"] = self.pickup_code.box.box_number if self.pickup_code.box else None
         if admin:
             data["customer_id"] = self.user_id
-            data["customer_name"] = self.user.name if self.user else None
-            data["customer_email"] = self.user.email if self.user else None
+            name = self.user.name if self.user else None
+            data["customer_name"] = f"{name} (invitado)" if name and self.user.is_guest else name
+            data["customer_email"] = self.user.contact_email if self.user else None
             data["payment_ref"] = self.payment_ref
         return data
 

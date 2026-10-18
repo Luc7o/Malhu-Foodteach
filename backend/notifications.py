@@ -125,12 +125,12 @@ def notify_order_paid(order):
   <p><b>Total pagado:</b> S/. {float(order.total):.2f}</p>
   <p style="color:#566E5A;font-size:13px">También puedes ver tu QR en «Mis pedidos». — {escape(store)}</p>
 </div>"""
-    send_email([order.user.email], f"Tu pedido está listo en la caja {box_number}", text, html, _qr_png(pickup.code))
+    send_email([order.user.contact_email], f"Tu pedido está listo en la caja {box_number}", text, html, _qr_png(pickup.code))
 
     alert_admin(
         f"Pedido nuevo de {order.user.name}",
         f"Pedido nuevo pagado: S/. {float(order.total):.2f}\n"
-        f"Cliente: {order.user.name} ({order.user.email})\n"
+        f"Cliente: {order.user.name} ({order.user.contact_email})\n"
         f"Caja {box_number} de {locker}\n{items}",
     )
 
@@ -148,7 +148,7 @@ def notify_refund_needed(order, reason):
     alert_admin(
         "Pago recibido que hay que reembolsar",
         f"{gateway} confirmó un pago, pero no se pudo preparar el pedido: {reason}\n\n"
-        f"Pedido: {order.id}\nCliente: {order.user.name} ({order.user.email})\n"
+        f"Pedido: {order.id}\nCliente: {order.user.name} ({order.user.contact_email})\n"
         f"Monto: S/. {float(order.total):.2f}\nTransacción {gateway}: {order.payment_ref}\n\n"
         f"Reembolsa el monto desde {panel}.",
     )
