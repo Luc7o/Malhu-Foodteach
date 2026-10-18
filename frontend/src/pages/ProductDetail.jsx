@@ -116,19 +116,19 @@ export default function ProductDetail() {
   const canAdd = !outOfStock && missing.length === 0
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-28 pt-6 lg:pb-12">
+    <div className="mx-auto w-full max-w-6xl overflow-x-clip px-4 pb-28 pt-6 lg:pb-12">
       <Link to="/menu" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-600 hover:text-ink-900">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Volver al menú
       </Link>
 
-      <div className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+      <div className="mt-4 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
         {/* Columna izquierda: foto, descripción y nutrición */}
-        <div className="space-y-5 lg:sticky lg:top-24 lg:self-start">
+        <div className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:self-start">
           <ProductImage
             src={product.image_url}
             alt={product.name}
             category={product.category}
-            className="aspect-[4/3] w-full rounded-2xl object-cover"
+            className="aspect-[4/3] w-full max-w-full rounded-2xl object-cover"
           />
           <div>
             {product.category && <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">{product.category}</p>}
@@ -165,7 +165,7 @@ export default function ProductDetail() {
         </div>
 
         {/* Columna derecha: personalización y compra */}
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <p className="font-display text-3xl font-bold text-ink-900">
             {customizable && <span className="mr-1.5 text-base font-medium text-ink-500">Desde</span>}
             {money(product.price)}

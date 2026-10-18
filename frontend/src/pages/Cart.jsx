@@ -114,7 +114,7 @@ export default function Cart() {
     <div className="mx-auto max-w-5xl px-4 py-10">
       <h1 className="mb-6 text-3xl font-bold text-ink-900">Tu carrito</h1>
 
-      <div className="grid gap-8 md:grid-cols-[1fr_20rem]">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_20rem]">
         <ul className="divide-y divide-ink-200 self-start rounded-2xl border border-ink-200 bg-white">
           {items.map((i) => {
             const price = unitPrice(i.product, i.options)

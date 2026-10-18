@@ -367,7 +367,7 @@ export default function OrderDetail() {
 
       <Progress status={order.status} />
 
-      <div className="grid gap-8 md:grid-cols-[1fr_20rem]">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_20rem]">
         <div>
           {order.status === 'pendiente_pago' && (
             <PaymentPanel

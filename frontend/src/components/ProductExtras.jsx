@@ -192,7 +192,7 @@ function HowItWorks() {
   return (
     <section className="rounded-2xl bg-brand-900 p-5 text-white" aria-label="Cómo lo retiras">
       <h2 className="text-sm font-semibold text-brand-200">Cómo lo retiras</h2>
-      <ol className="mt-3 grid gap-3 sm:grid-cols-3">
+      <ol className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {STEPS.map(([Icon, title, text], i) => (
           <li key={title} className="flex items-start gap-3 sm:block">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
