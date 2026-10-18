@@ -260,11 +260,21 @@ def device_commands():
     now = datetime.utcnow()
     locker.last_seen = now
 
-    pending = (
-        OpenCommand.query.filter_by(locker_id=locker.id, status="pendiente")
-        .order_by(OpenCommand.created_at)
-        .all()
-    )
+    # Además de las "pendiente", se entregan por HTTP las "enviado" (publicadas por MQTT)
+    # que el ESP32 no confirmó (ack) a tiempo: el broker acepta el mensaje aunque el ESP32
+    # no esté suscrito, y en Vercel el ack puede no procesarse. Sin esto la orden se perdía.
+    grace = current_app.config.get("MQTT_ACK_GRACE_SECONDS", 4)
+    pending = [
+        c for c in (
+            OpenCommand.query.filter(
+                OpenCommand.locker_id == locker.id,
+                OpenCommand.status.in_(("pendiente", "enviado")),
+            )
+            .order_by(OpenCommand.created_at)
+            .all()
+        )
+        if c.status == "pendiente" or now - c.created_at >= timedelta(seconds=grace)
+    ]
     commands = []
     for cmd in pending:
         if now >= cmd.expires_at:
