@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
-  ArrowLeft, Ban, Check, CircleCheck, Clock, Copy, CreditCard, Download, MapPin, Smartphone,
+  ArrowLeft, Ban, Check, CircleCheck, Clock, Copy, CreditCard, DoorClosed, Download, MapPin, Smartphone,
 } from 'lucide-react'
 import { api } from '../api'
 import { useAuth } from '../context/AuthContext'
@@ -9,6 +9,7 @@ import { useToast } from '../context/ToastContext'
 import { PageLoader, Spinner, StatusBadge } from '../components/ui'
 import CulqiForm from '../components/CulqiForm'
 import IzipayForm from '../components/IzipayForm'
+import LockerPurchaseScene from '../components/LockerPurchaseScene'
 import { formatDateTime, formatDuration, money, shortId, useCountdown } from '../lib/format'
 
 const METHODS = [
@@ -186,7 +187,7 @@ function PaymentPanel({ order, remaining, config, token, user, onPay, onPaidOrde
   )
 }
 
-function PickupTicket({ order, qr, remaining }) {
+function PickupTicket({ order, qr, remaining, onPreview }) {
   const toast = useToast()
 
   function copyCode() {
@@ -232,6 +233,9 @@ function PickupTicket({ order, qr, remaining }) {
               <a href={qr.qr_image_base64} download={`qr-${qr.code}.png`} className="btn-secondary !py-2">
                 <Download className="h-4 w-4" aria-hidden="true" /> Descargar QR
               </a>
+              <button type="button" onClick={onPreview} className="btn-secondary !py-2">
+                <DoorClosed className="h-4 w-4" aria-hidden="true" /> Ver animación
+              </button>
             </div>
           )}
         </div>
@@ -273,6 +277,7 @@ export default function OrderDetail() {
   const [error, setError] = useState('')
   const [paying, setPaying] = useState(false)
   const [canceling, setCanceling] = useState(false)
+  const [scene, setScene] = useState(false) // escena "compra confirmada"
 
   const load = useCallback(async () => {
     try {
@@ -301,7 +306,10 @@ export default function OrderDetail() {
       const o = await api.getOrder(token, id).catch(() => null)
       if (o && o.status !== status) {
         setOrder(o)
-        if (o.status === 'pagado') api.getOrderQr(token, id).then(setQr).catch(() => {})
+        if (o.status === 'pagado') {
+          api.getOrderQr(token, id).then(setQr).catch(() => {})
+          setScene(true)
+        }
         if (o.status === 'retirado') toast.success('¡Pedido retirado! Buen provecho.')
       }
     }, 5000)
@@ -318,6 +326,7 @@ export default function OrderDetail() {
       const paid = await api.payOrder(token, id, method)
       setOrder(paid)
       api.getOrderQr(token, id).then(setQr).catch(() => {})
+      setScene(true)
       toast.success('Pago confirmado. Aquí está tu código QR.')
     } catch (e) {
       toast.error(e.message)
@@ -330,6 +339,7 @@ export default function OrderDetail() {
   function handlePaidOrder(paid) {
     setOrder(paid)
     api.getOrderQr(token, id).then(setQr).catch(() => {})
+    setScene(true)
     toast.success('Pago confirmado. Aquí está tu código QR.')
   }
 
@@ -357,6 +367,9 @@ export default function OrderDetail() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
+      {scene && order.box_number != null && (
+        <LockerPurchaseScene boxNumber={order.box_number} lockerName={order.locker_name} onClose={() => setScene(false)} />
+      )}
       <Link to="/orders" className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-ink-500 hover:text-ink-900">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Mis pedidos
       </Link>
@@ -383,7 +396,7 @@ export default function OrderDetail() {
               canceling={canceling}
             />
           )}
-          {order.status === 'pagado' && <PickupTicket order={order} qr={qr} remaining={remaining} />}
+          {order.status === 'pagado' && <PickupTicket order={order} qr={qr} remaining={remaining} onPreview={() => setScene(true)} />}
           {order.status === 'retirado' && (
             <Notice tone="ok" icon={CircleCheck} title="Pedido retirado">
               Lo retiraste de la caja {order.box_number} el {formatDateTime(order.used_at)}. Buen provecho.
