@@ -17,7 +17,14 @@ const MAX_IMAGE_MB = 5
 
 const EMPTY_FORM = {
   name: '', description: '', category_id: '', price: '', stock: '', image_url: '',
+<<<<<<< Updated upstream
   status: 'publicado', featured: false, sold_out: false,
+=======
+  status: 'publicado', featured: false, sold_out: false, health_tag_ids: [],
+  calories: '', protein_g: '', carbs_g: '', fat_g: '', serving: '', ingredient_only: false,
+  fiber_g: '', sugar_g: '', sat_fat_g: '', sodium_mg: '', ingredients_text: '', allergens: '',
+  customizable: false, option_groups: [],
+>>>>>>> Stashed changes
 }
 
 const STATUS_OPTIONS = [
@@ -30,7 +37,33 @@ function ProductForm({ initial, categories, onCancel, onSaved, onCategoryCreated
   const { token } = useAuth()
   const toast = useToast()
   const [form, setForm] = useState(
+<<<<<<< Updated upstream
     initial ? { ...EMPTY_FORM, ...initial, category_id: initial.category_id || '', sold_out: initial.sold_out_manual } : EMPTY_FORM
+=======
+    initial
+      ? {
+          ...EMPTY_FORM,
+          ...initial,
+          category_id: initial.category_id || '',
+          sold_out: initial.sold_out_manual,
+          health_tag_ids: (initial.health_tags || []).map((t) => t.id),
+          calories: initial.nutrition?.calories ?? '',
+          protein_g: initial.nutrition?.protein_g ?? '',
+          carbs_g: initial.nutrition?.carbs_g ?? '',
+          fat_g: initial.nutrition?.fat_g ?? '',
+          serving: initial.nutrition?.serving ?? '',
+          fiber_g: initial.nutrition?.fiber_g ?? '',
+          sugar_g: initial.nutrition?.sugar_g ?? '',
+          sat_fat_g: initial.nutrition?.sat_fat_g ?? '',
+          sodium_mg: initial.nutrition?.sodium_mg ?? '',
+          ingredients_text: initial.ingredients ?? '',
+          allergens: initial.allergens ?? '',
+          ingredient_only: Boolean(initial.ingredient_only),
+          customizable: Boolean(initial.customizable),
+          option_groups: groupsToForm(initial.option_groups),
+        }
+      : EMPTY_FORM
+>>>>>>> Stashed changes
   )
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -104,6 +137,23 @@ function ProductForm({ initial, categories, onCancel, onSaved, onCategoryCreated
       status: form.status,
       featured: form.featured,
       sold_out: form.sold_out,
+<<<<<<< Updated upstream
+=======
+      health_tag_ids: form.health_tag_ids,
+      calories: form.calories,
+      protein_g: form.protein_g,
+      carbs_g: form.carbs_g,
+      fat_g: form.fat_g,
+      serving: form.serving,
+      fiber_g: form.fiber_g,
+      sugar_g: form.sugar_g,
+      sat_fat_g: form.sat_fat_g,
+      sodium_mg: form.sodium_mg,
+      ingredients_text: form.ingredients_text,
+      allergens: form.allergens,
+      ingredient_only: form.ingredient_only,
+      option_groups: groupsToPayload(groups),
+>>>>>>> Stashed changes
     }
     try {
       const saved = isEdit
@@ -218,6 +268,86 @@ function ProductForm({ initial, categories, onCancel, onSaved, onCategoryCreated
         </div>
 
         <div>
+<<<<<<< Updated upstream
+=======
+          <div className="mb-1.5 flex items-baseline justify-between">
+            <label className="label !mb-0">Información nutricional <span className="font-normal text-ink-400">(opcional, por porción)</span></label>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <label className="label" htmlFor="p-kcal">Calorías (kcal)</label>
+              <input id="p-kcal" className="input" type="number" min="0" max="5000" step="1" value={form.calories} onChange={(e) => set('calories', e.target.value)} />
+            </div>
+            <div>
+              <label className="label" htmlFor="p-prot">Proteínas (g)</label>
+              <input id="p-prot" className="input" type="number" min="0" step="0.1" value={form.protein_g} onChange={(e) => set('protein_g', e.target.value)} />
+            </div>
+            <div>
+              <label className="label" htmlFor="p-carb">Carbohid. (g)</label>
+              <input id="p-carb" className="input" type="number" min="0" step="0.1" value={form.carbs_g} onChange={(e) => set('carbs_g', e.target.value)} />
+            </div>
+            <div>
+              <label className="label" htmlFor="p-fat">Grasas (g)</label>
+              <input id="p-fat" className="input" type="number" min="0" step="0.1" value={form.fat_g} onChange={(e) => set('fat_g', e.target.value)} />
+            </div>
+          </div>
+          <input className="input mt-2" aria-label="Porción" placeholder='Porción, ej. "1 taza (150 g)"' maxLength={60} value={form.serving} onChange={(e) => set('serving', e.target.value)} />
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <label className="label" htmlFor="p-satfat">Grasa saturada (g)</label>
+              <input id="p-satfat" className="input" type="number" min="0" step="0.1" value={form.sat_fat_g} onChange={(e) => set('sat_fat_g', e.target.value)} />
+            </div>
+            <div>
+              <label className="label" htmlFor="p-sugar">Azúcares (g)</label>
+              <input id="p-sugar" className="input" type="number" min="0" step="0.1" value={form.sugar_g} onChange={(e) => set('sugar_g', e.target.value)} />
+            </div>
+            <div>
+              <label className="label" htmlFor="p-fiber">Fibra (g)</label>
+              <input id="p-fiber" className="input" type="number" min="0" step="0.1" value={form.fiber_g} onChange={(e) => set('fiber_g', e.target.value)} />
+            </div>
+            <div>
+              <label className="label" htmlFor="p-sodium">Sodio (mg)</label>
+              <input id="p-sodium" className="input" type="number" min="0" step="1" value={form.sodium_mg} onChange={(e) => set('sodium_mg', e.target.value)} />
+            </div>
+          </div>
+          <textarea className="input mt-3" rows={2} maxLength={1000} aria-label="Ingredientes" placeholder="Ingredientes, ej. Pan brioche, carne de res, queso cheddar…" value={form.ingredients_text} onChange={(e) => set('ingredients_text', e.target.value)} />
+          <input className="input mt-2" aria-label="Alérgenos" placeholder="Alérgenos, ej. Gluten, leche, huevo" maxLength={200} value={form.allergens} onChange={(e) => set('allergens', e.target.value)} />
+          <p className="mt-1.5 text-xs text-ink-400">Se muestra al cliente. En un plato armable, las calorías se suman con las de cada ingrediente elegido.</p>
+        </div>
+
+        <div className="space-y-2 rounded-xl bg-ink-50 p-3">
+          <label className="flex items-start gap-2 text-sm text-ink-700">
+            <input
+              type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={form.ingredient_only}
+              onChange={(e) => setForm((f) => ({ ...f, ingredient_only: e.target.checked, customizable: e.target.checked ? false : f.customizable }))}
+            />
+            <span><strong>Solo ingrediente.</strong> No sale en el menú; únicamente se puede elegir dentro de un plato personalizable. Su stock se descuenta cada vez que alguien lo elige.</span>
+          </label>
+          {!form.ingredient_only && (
+            <label className="flex items-start gap-2 text-sm text-ink-700">
+              <input
+                type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={form.customizable}
+                onChange={(e) => setForm((f) => ({ ...f, customizable: e.target.checked, option_groups: e.target.checked && f.option_groups.length === 0 ? [{ name: '', min_select: 1, max_select: 1, items: [{ ingredient_id: '', extra_price: '0' }] }] : f.option_groups }))}
+              />
+              <span><strong>Plato personalizable.</strong> El cliente arma su plato eligiendo productos por pasos (base, proteína, toppings…).</span>
+            </label>
+          )}
+        </div>
+
+        {form.customizable && !form.ingredient_only && (
+          <div>
+            <label className="label">Pasos del armado</label>
+            {candidates.length === 0 && (
+              <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                Primero crea los productos que se podrán elegir (marcándolos como «Solo ingrediente» si no deben salir en el menú).
+              </p>
+            )}
+            <OptionGroupsEditor groups={form.option_groups} onChange={(g) => set('option_groups', g)} candidates={candidates} />
+          </div>
+        )}
+
+        <div>
+>>>>>>> Stashed changes
           <label className="label" htmlFor="p-status">Estado</label>
           <select id="p-status" className="input" value={form.status} onChange={(e) => set('status', e.target.value)}>
             {STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}

@@ -34,6 +34,25 @@ NEW_COLUMNS = [
     ("users", "last_login_at", "DATETIME NULL"),
     ("users", "totp_secret", "VARCHAR(64) NULL"),
     ("users", "totp_enabled", "BOOLEAN NOT NULL DEFAULT FALSE"),
+<<<<<<< Updated upstream
+=======
+    # --- información nutricional y platos personalizables
+    ("products", "calories", "INTEGER NULL"),
+    ("products", "protein_g", "NUMERIC(6,1) NULL"),
+    ("products", "carbs_g", "NUMERIC(6,1) NULL"),
+    ("products", "fat_g", "NUMERIC(6,1) NULL"),
+    ("products", "serving", "VARCHAR(60) NULL"),
+    ("products", "ingredient_only", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    # --- detalle nutricional ampliado, ingredientes y alérgenos
+    ("products", "fiber_g", "NUMERIC(6,1) NULL"),
+    ("products", "sugar_g", "NUMERIC(6,1) NULL"),
+    ("products", "sat_fat_g", "NUMERIC(6,1) NULL"),
+    ("products", "sodium_mg", "INTEGER NULL"),
+    ("products", "ingredients_text", "TEXT NULL"),
+    ("products", "allergens", "VARCHAR(200) NULL"),
+    ("order_items", "selections", "TEXT NULL"),
+    ("order_items", "calories", "INTEGER NULL"),
+>>>>>>> Stashed changes
 ]
 
 app = create_app()

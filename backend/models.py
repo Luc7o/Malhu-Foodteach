@@ -91,6 +91,25 @@ class Product(db.Model):
     sold_out = db.Column(db.Boolean, nullable=False, default=False)
     sort_order = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+<<<<<<< Updated upstream
+=======
+    # Información nutricional por porción (opcional). Valores referenciales.
+    calories = db.Column(db.Integer, nullable=True)
+    protein_g = db.Column(db.Numeric(6, 1), nullable=True)
+    carbs_g = db.Column(db.Numeric(6, 1), nullable=True)
+    fat_g = db.Column(db.Numeric(6, 1), nullable=True)
+    serving = db.Column(db.String(60), nullable=True)  # ej. "1 porción (250 g)"
+    # Detalle nutricional ampliado (por porción, opcional): clave para quien cuida azúcar, sodio o grasa saturada
+    fiber_g = db.Column(db.Numeric(6, 1), nullable=True)
+    sugar_g = db.Column(db.Numeric(6, 1), nullable=True)
+    sat_fat_g = db.Column(db.Numeric(6, 1), nullable=True)
+    sodium_mg = db.Column(db.Integer, nullable=True)
+    # Qué lleva el producto y a qué puede causar alergia (texto libre, lo escribe el admin)
+    ingredients_text = db.Column(db.Text, nullable=True)
+    allergens = db.Column(db.String(200), nullable=True)
+    # Ingrediente que solo se puede elegir dentro de un plato personalizable (no sale en el menú)
+    ingredient_only = db.Column(db.Boolean, nullable=False, default=False)
+>>>>>>> Stashed changes
 
     category_ref = db.relationship("Category", back_populates="products")
 
@@ -104,6 +123,29 @@ class Product(db.Model):
     def is_out_of_stock(self):
         return bool(self.sold_out) or self.stock <= 0
 
+<<<<<<< Updated upstream
+=======
+    def is_customizable(self):
+        return any(g.items for g in self.option_groups)
+
+    def nutrition_dict(self):
+        """Información nutricional, o None si el producto no tiene ningún dato cargado."""
+        values = {
+            "calories": self.calories,
+            "protein_g": float(self.protein_g) if self.protein_g is not None else None,
+            "carbs_g": float(self.carbs_g) if self.carbs_g is not None else None,
+            "fat_g": float(self.fat_g) if self.fat_g is not None else None,
+            "fiber_g": float(self.fiber_g) if self.fiber_g is not None else None,
+            "sugar_g": float(self.sugar_g) if self.sugar_g is not None else None,
+            "sat_fat_g": float(self.sat_fat_g) if self.sat_fat_g is not None else None,
+            "sodium_mg": self.sodium_mg,
+        }
+        if all(v is None for v in values.values()):
+            return None
+        values["serving"] = self.serving
+        return values
+
+>>>>>>> Stashed changes
     def to_dict(self, admin=False):
         data = {
             "id": self.id,
@@ -120,6 +162,16 @@ class Product(db.Model):
             "featured": bool(self.featured),
             "sold_out": self.is_out_of_stock(),
             "sort_order": self.sort_order or 0,
+<<<<<<< Updated upstream
+=======
+            "health_tags": [{"id": t.id, "name": t.name} for t in self.sorted_health_tags()],
+            "nutrition": self.nutrition_dict(),
+            "ingredients": self.ingredients_text,
+            "allergens": self.allergens,
+            "ingredient_only": bool(self.ingredient_only),
+            "customizable": self.is_customizable(),
+            "option_groups": [g.to_dict(admin=admin) for g in self.option_groups],
+>>>>>>> Stashed changes
         }
         if admin:
             threshold = current_app.config.get("LOW_STOCK_THRESHOLD", 3)
