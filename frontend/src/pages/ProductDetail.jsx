@@ -6,6 +6,7 @@ import { useCart } from '../context/CartContext'
 import { useToast } from '../context/ToastContext'
 import DishOptions from '../components/DishOptions'
 import NutritionFacts from '../components/NutritionFacts'
+import ProductExtras from '../components/ProductExtras'
 import { EmptyState, PageLoader, ProductImage } from '../components/ui'
 import {
   PRESETS, buildPreset, flattenSelected, loadLastChoice, nutritionTotals, saveLastChoice, unitPrice,
@@ -234,6 +235,9 @@ export default function ProductDetail() {
               </p>
             )}
           </div>
+
+          {/* Relleno útil cuando no hay opciones que elegir */}
+          {!customizable && <ProductExtras product={product} />}
         </div>
       </div>
     </div>
