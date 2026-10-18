@@ -2,13 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Heart, MessageCircle, QrCode, ShoppingBag, Smartphone } from 'lucide-react'
 import { api } from '../api'
-import { LockerBay, ProductImage } from '../components/ui'
-
-const SAMPLE_BOXES = Array.from({ length: 6 }, (_, i) => ({
-  id: `s${i}`,
-  box_number: i + 1,
-  status: 'libre',
-}))
+import { ProductImage } from '../components/ui'
+import HealthyBowlHero from '../components/HealthyBowlHero'
 
 const STEPS = [
   [Smartphone, 'Elige y paga', 'Arma tu pedido y págalo desde el celular.'],
@@ -17,7 +12,7 @@ const STEPS = [
 ]
 
 function Hero({ locker }) {
-  const boxes = locker?.boxes?.length ? locker.boxes : SAMPLE_BOXES
+  const boxes = locker?.boxes ?? []
   const libres = boxes.filter((b) => b.status === 'libre').length
   return (
     <section className="bg-gradient-to-br from-brand-900 via-brand-800 to-brand-600 text-white">
@@ -37,15 +32,19 @@ function Hero({ locker }) {
           </Link>
         </div>
 
-        <div className="mx-auto w-full max-w-sm md:max-w-none">
-          <LockerBay boxes={boxes} demo className="shadow-pop ring-1 ring-white/15" />
-          <p className="mt-3 flex flex-wrap items-center gap-x-2 text-sm text-brand-200">
-            <span className="font-semibold text-white">{locker ? locker.name : 'Locker de ejemplo'}</span>
-            {locker?.address && <span>{locker.address}</span>}
-            <span className="ml-auto font-medium text-white">
-              {libres} de {boxes.length} cajas libres
-            </span>
-          </p>
+        <div className="mx-auto w-full max-w-md md:max-w-none">
+          <HealthyBowlHero />
+          {locker && (
+            <p className="mt-3 flex flex-wrap items-center gap-x-2 text-sm text-brand-200">
+              <span className="font-semibold text-white">{locker.name}</span>
+              {locker.address && <span>{locker.address}</span>}
+              {boxes.length > 0 && (
+                <span className="ml-auto font-medium text-white">
+                  {libres} de {boxes.length} cajas libres
+                </span>
+              )}
+            </p>
+          )}
         </div>
       </div>
     </section>

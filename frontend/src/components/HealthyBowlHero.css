@@ -1,0 +1,189 @@
+/* Animación de la portada: un bowl saludable que se arma (ciclo de 12 s).
+   Todas las clases empiezan con "hb-" para no chocar con el resto de la web. */
+
+.hb-anim {
+  animation-duration: 12s;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+/* ---------- Ingredientes que caen al bowl ---------- */
+.hb-d1 { animation-name: hb-d1; }
+.hb-d2 { animation-name: hb-d2; }
+.hb-d3 { animation-name: hb-d3; }
+.hb-d4 { animation-name: hb-d4; }
+.hb-d5 { animation-name: hb-d5; }
+.hb-d6 { animation-name: hb-d6; }
+
+@keyframes hb-d1 {
+  0%, 4% { opacity: 0; transform: translateY(-170px); animation-timing-function: cubic-bezier(.55, 0, .9, .6); }
+  7% { opacity: 1; }
+  13% { transform: translateY(7px); animation-timing-function: ease-out; }
+  16% { transform: translateY(-3px); animation-timing-function: ease-in-out; }
+  18%, 93% { opacity: 1; transform: translateY(0); }
+  97%, 100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes hb-d2 {
+  0%, 13% { opacity: 0; transform: translateY(-170px); animation-timing-function: cubic-bezier(.55, 0, .9, .6); }
+  16% { opacity: 1; }
+  22% { transform: translateY(7px); animation-timing-function: ease-out; }
+  25% { transform: translateY(-3px); animation-timing-function: ease-in-out; }
+  27%, 93% { opacity: 1; transform: translateY(0); }
+  97%, 100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes hb-d3 {
+  0%, 22% { opacity: 0; transform: translateY(-170px); animation-timing-function: cubic-bezier(.55, 0, .9, .6); }
+  25% { opacity: 1; }
+  31% { transform: translateY(7px); animation-timing-function: ease-out; }
+  34% { transform: translateY(-3px); animation-timing-function: ease-in-out; }
+  36%, 93% { opacity: 1; transform: translateY(0); }
+  97%, 100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes hb-d4 {
+  0%, 31% { opacity: 0; transform: translateY(-170px); animation-timing-function: cubic-bezier(.55, 0, .9, .6); }
+  34% { opacity: 1; }
+  40% { transform: translateY(7px); animation-timing-function: ease-out; }
+  43% { transform: translateY(-3px); animation-timing-function: ease-in-out; }
+  45%, 93% { opacity: 1; transform: translateY(0); }
+  97%, 100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes hb-d5 {
+  0%, 40% { opacity: 0; transform: translateY(-170px); animation-timing-function: cubic-bezier(.55, 0, .9, .6); }
+  43% { opacity: 1; }
+  49% { transform: translateY(7px); animation-timing-function: ease-out; }
+  52% { transform: translateY(-3px); animation-timing-function: ease-in-out; }
+  54%, 93% { opacity: 1; transform: translateY(0); }
+  97%, 100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes hb-d6 {
+  0%, 49% { opacity: 0; transform: translateY(-170px); animation-timing-function: cubic-bezier(.55, 0, .9, .6); }
+  52% { opacity: 1; }
+  58% { transform: translateY(7px); animation-timing-function: ease-out; }
+  61% { transform: translateY(-3px); animation-timing-function: ease-in-out; }
+  63%, 93% { opacity: 1; transform: translateY(0); }
+  97%, 100% { opacity: 0; transform: translateY(0); }
+}
+
+/* ---------- Barras de nutrientes ---------- */
+.hb-bar {
+  height: 100%;
+  width: 100%;
+  border-radius: 4px;
+  background: #a8d66b;
+  transform: scaleX(.9);
+  transform-origin: left center;
+}
+.hb-bar-p { animation-name: hb-barP; }
+.hb-bar-f { animation-name: hb-barF; }
+.hb-bar-e { animation-name: hb-barE; }
+
+@keyframes hb-barP {
+  0%, 4% { transform: scaleX(0); } 13% { transform: scaleX(.16); } 22% { transform: scaleX(.22); }
+  31% { transform: scaleX(.28); } 40% { transform: scaleX(.32); } 49% { transform: scaleX(.82); }
+  58%, 93% { transform: scaleX(.88); } 97%, 100% { transform: scaleX(0); }
+}
+@keyframes hb-barF {
+  0%, 4% { transform: scaleX(0); } 13% { transform: scaleX(.2); } 22% { transform: scaleX(.5); }
+  31% { transform: scaleX(.8); } 40% { transform: scaleX(.86); } 49% { transform: scaleX(.86); }
+  58%, 93% { transform: scaleX(.96); } 97%, 100% { transform: scaleX(0); }
+}
+@keyframes hb-barE {
+  0%, 4% { transform: scaleX(0); } 13% { transform: scaleX(.42); } 22% { transform: scaleX(.5); }
+  31% { transform: scaleX(.74); } 40% { transform: scaleX(.8); } 49% { transform: scaleX(.88); }
+  58%, 93% { transform: scaleX(.92); } 97%, 100% { transform: scaleX(0); }
+}
+
+/* ---------- Insignia "Listo para retirar" y destellos ---------- */
+.hb-badge { animation-name: hb-badge; }
+@keyframes hb-badge {
+  0%, 64% { opacity: 0; transform: translateY(12px) scale(.92); }
+  70%, 93% { opacity: 1; transform: translateY(0) scale(1); }
+  97%, 100% { opacity: 0; transform: translateY(0) scale(1); }
+}
+
+.hb-spark {
+  opacity: 0;
+  animation-name: hb-spark;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes hb-spark {
+  0%, 62% { opacity: 0; transform: scale(.2) rotate(0deg); }
+  67% { opacity: 1; transform: scale(1) rotate(45deg); }
+  75%, 100% { opacity: 0; transform: scale(.4) rotate(90deg); }
+}
+
+/* ---------- Públicos: etiqueta activa + frase (hospitales → gimnasios → universidades) ---------- */
+.hb-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(223, 233, 207, .35);
+  background-color: rgba(255, 255, 255, .04);
+  color: #dfe9cf;
+  font-size: 13px;
+  font-weight: 600;
+}
+.hb-pa { background-color: #e7f0d2; color: #17301f; border-color: #e7f0d2; animation-name: hb-pA; }
+.hb-pb { animation-name: hb-pB; }
+.hb-pc { animation-name: hb-pC; }
+
+@keyframes hb-pA {
+  0%, 30% { background-color: #e7f0d2; color: #17301f; border-color: #e7f0d2; }
+  34%, 96% { background-color: rgba(255, 255, 255, .04); color: #dfe9cf; border-color: rgba(223, 233, 207, .35); }
+  100% { background-color: #e7f0d2; color: #17301f; border-color: #e7f0d2; }
+}
+@keyframes hb-pB {
+  0%, 30% { background-color: rgba(255, 255, 255, .04); color: #dfe9cf; border-color: rgba(223, 233, 207, .35); }
+  34%, 63% { background-color: #e7f0d2; color: #17301f; border-color: #e7f0d2; }
+  67%, 100% { background-color: rgba(255, 255, 255, .04); color: #dfe9cf; border-color: rgba(223, 233, 207, .35); }
+}
+@keyframes hb-pC {
+  0%, 63% { background-color: rgba(255, 255, 255, .04); color: #dfe9cf; border-color: rgba(223, 233, 207, .35); }
+  67%, 96% { background-color: #e7f0d2; color: #17301f; border-color: #e7f0d2; }
+  100% { background-color: rgba(255, 255, 255, .04); color: #dfe9cf; border-color: rgba(223, 233, 207, .35); }
+}
+
+.hb-cap { opacity: 0; }
+.hb-ca { opacity: 1; animation-name: hb-cA; }
+.hb-cb { animation-name: hb-cB; }
+.hb-cc { animation-name: hb-cC; }
+
+@keyframes hb-cA {
+  0%, 30% { opacity: 1; transform: translateY(0); }
+  34% { opacity: 0; transform: translateY(-8px); }
+  96% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes hb-cB {
+  0%, 30% { opacity: 0; transform: translateY(8px); }
+  34%, 63% { opacity: 1; transform: translateY(0); }
+  67% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 0; transform: translateY(8px); }
+}
+@keyframes hb-cC {
+  0%, 63% { opacity: 0; transform: translateY(8px); }
+  67%, 96% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-8px); }
+}
+
+/* ---------- Hojitas que flotan de fondo ---------- */
+.hb-fl { animation-name: hb-fl; pointer-events: none; }
+.hb-fl1 { animation-duration: 9s; }
+.hb-fl2 { animation-duration: 11s; animation-delay: -4s; }
+.hb-fl3 { animation-duration: 13s; animation-delay: -7s; }
+@keyframes hb-fl {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0deg); }
+  15%, 85% { opacity: .55; }
+  100% { opacity: 0; transform: translate(22px, -130px) rotate(85deg); }
+}
+
+/* Quien prefiere menos movimiento ve el bowl ya armado, sin animar */
+@media (prefers-reduced-motion: reduce) {
+  .hb-anim { animation: none !important; }
+}
