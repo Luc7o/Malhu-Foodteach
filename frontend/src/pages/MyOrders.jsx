@@ -64,8 +64,8 @@ export default function MyOrders() {
             const count = o.items.reduce((s, i) => s + i.quantity, 0)
             return (
               <li key={o.id}>
-                <Link to={`/orders/${o.id}`} className="flex items-center gap-4 p-4 transition-colors hover:bg-ink-50">
-                  <div className="min-w-0 flex-1">
+                <Link to={`/orders/${o.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 transition-colors hover:bg-ink-50 sm:flex-nowrap">
+                  <div className="min-w-0 basis-[calc(100%-2rem)] flex-1 sm:basis-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold text-ink-900">#{shortId(o.id)}</span>
                       <StatusBadge status={o.status} />
@@ -77,7 +77,7 @@ export default function MyOrders() {
                       {formatDateTime(o.created_at)} · {count} {count === 1 ? 'producto' : 'productos'}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-left sm:text-right">
                     <p className="font-display font-bold text-ink-900">{money(o.total)}</p>
                     {ACTION_LABEL[o.status] && (
                       <p className="text-sm font-semibold text-brand-600">{ACTION_LABEL[o.status]}</p>

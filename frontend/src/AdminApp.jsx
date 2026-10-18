@@ -18,7 +18,7 @@ import AdminSecurity from './pages/admin/AdminSecurity'
 function AdminHeader() {
   const { user, logout } = useAuth()
   return (
-    <header className="sticky top-0 z-50 bg-brand-900/95 backdrop-blur">
+    <header className="sticky top-0 z-50 bg-brand-900/95 pt-[env(safe-area-inset-top)] backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
         <Link to="/" aria-label="Panel de administración">
           <Logo tone="light" tagline={false} />

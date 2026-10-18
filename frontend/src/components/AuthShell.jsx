@@ -13,7 +13,7 @@ const DEMO_BOXES = [
 /** Estructura compartida por Login y Registro: formulario a la derecha, locker a la izquierda. */
 export default function AuthShell({ title, subtitle, children, footer }) {
   return (
-    <div className="mx-auto grid min-h-[80vh] max-w-6xl items-center gap-12 px-4 py-10 lg:grid-cols-2">
+    <div className="mx-auto grid min-h-[80svh] max-w-6xl items-center gap-8 px-4 py-8 sm:py-10 lg:grid-cols-2 lg:gap-12">
       <div className="hidden lg:block">
         <LockerBay boxes={DEMO_BOXES} className="max-w-md" />
         <p className="mt-5 max-w-md text-lg font-medium text-ink-700">

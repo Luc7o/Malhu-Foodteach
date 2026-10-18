@@ -120,14 +120,14 @@ export default function Cart() {
             const price = unitPrice(i.product, i.options)
             const totals = nutritionTotals(i.product, i.options)
             return (
-            <li key={i.key} className="flex items-center gap-4 p-4">
+            <li key={i.key} className="flex flex-wrap items-center gap-x-3 gap-y-3 p-3 sm:flex-nowrap sm:gap-4 sm:p-4">
               <ProductImage
                 src={i.product.image_url}
                 alt={i.product.name}
                 category={i.product.category}
-                className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                className="h-14 w-14 shrink-0 rounded-lg object-cover sm:h-16 sm:w-16"
               />
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 basis-[calc(100%-5rem)] sm:basis-0">
                 <p className="truncate font-semibold text-ink-900">{i.product.name}</p>
                 {i.options.length > 0 && (
                   <p className="text-sm text-ink-600">{i.options.map((o) => o.name).join(' · ')}</p>
@@ -160,7 +160,7 @@ export default function Cart() {
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
-              <p className="w-20 text-right font-display font-bold text-ink-900">
+              <p className="ml-auto w-20 text-right font-display font-bold text-ink-900 sm:ml-0">
                 {money(price * i.quantity)}
               </p>
               <button
@@ -175,7 +175,7 @@ export default function Cart() {
           })}
         </ul>
 
-        <aside className="panel sticky top-20 h-fit space-y-5 p-5">
+        <aside className="panel h-fit space-y-5 p-4 sm:p-5 md:sticky md:top-20">
           <div>
             <h2 className="mb-2 text-sm font-semibold text-ink-700">Retira en</h2>
             {loadingLockers ? (
