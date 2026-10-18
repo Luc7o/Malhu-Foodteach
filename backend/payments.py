@@ -149,8 +149,10 @@ class CulqiProvider:
     def charge(self, order, method, payload=None):
         payload = payload or {}
         token_id = str(payload.get("token_id") or "").strip()
-        if not token_id.startswith("tkn_"):
+        # Tarjeta -> tkn_...   |   Yape -> ype_...  (ambos sirven como source_id del cargo)
+        if not token_id.startswith(("tkn_", "ype_")):
             raise PaymentError("No recibimos los datos del pago. Vuelve a intentarlo.")
+        is_yape = token_id.startswith("ype_")
         email = payload.get("email")
         if not email:
             raise PaymentError("Tu cuenta no tiene un correo para emitir el pago.")
@@ -206,7 +208,7 @@ class CulqiProvider:
                 "No pudimos confirmar el pago con Culqi. Si te cobraron, escríbenos y lo revisamos."
             )
         source_type = ((data.get("source") or {}).get("type") or "").lower()
-        return {"ref": data["id"], "method": "yape" if source_type == "yape" else "tarjeta"}
+        return {"ref": data["id"], "method": "yape" if (is_yape or source_type == "yape") else "tarjeta"}
 
 
 PROVIDERS = {"simulated": SimulatedProvider, "izipay": IzipayProvider, "culqi": CulqiProvider}
