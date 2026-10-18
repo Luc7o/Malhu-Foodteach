@@ -54,7 +54,7 @@ class Config:
     # Minutos que un pedido puede quedar sin pagar antes de cancelarse solo
     PENDING_ORDER_TTL_MINUTES = int(os.getenv("PENDING_ORDER_TTL_MINUTES", "30"))
 
-    # Pasarela de pago: "simulated" (pago de prueba) hasta conectar una real.
+    # Pasarela de pago: "simulated" (pago de prueba), "culqi" o "izipay".
     PAYMENT_PROVIDER = os.getenv("PAYMENT_PROVIDER", "simulated")
 
     # Orígenes permitidos por CORS. "*" en desarrollo; en producción, la URL del frontend.
@@ -111,6 +111,13 @@ class Config:
     # Opcional: URL pública de la IPN (https://tu-dominio/api/izipay/ipn). Si la dejas vacía,
     # configúrala en el Back Office: Configuración > Reglas de notificación.
     IZIPAY_IPN_URL = os.getenv("IZIPAY_IPN_URL", "")
+
+    # ---------- Culqi (PAYMENT_PROVIDER=culqi) ----------
+    # Llaves del CulqiPanel > Desarrollo > API Keys. Integración = pk_test_/sk_test_,
+    # producción = pk_live_/sk_live_. La llave secreta NUNCA va en el frontend.
+    CULQI_PUBLIC_KEY = os.getenv("CULQI_PUBLIC_KEY", "")
+    CULQI_SECRET_KEY = os.getenv("CULQI_SECRET_KEY", "")
+    CULQI_API_URL = os.getenv("CULQI_API_URL", "https://api.culqi.com")
 
     # ---------- Avisos por correo (SMTP) ----------
     MAIL_SERVER = os.getenv("MAIL_SERVER", "")              # vacío = no se envían correos

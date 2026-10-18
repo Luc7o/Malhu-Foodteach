@@ -7,6 +7,7 @@ import { api } from '../api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { PageLoader, Spinner, StatusBadge } from '../components/ui'
+import CulqiForm from '../components/CulqiForm'
 import IzipayForm from '../components/IzipayForm'
 import { formatDateTime, formatDuration, money, shortId, useCountdown } from '../lib/format'
 
@@ -83,10 +84,11 @@ function Summary({ order }) {
   )
 }
 
-function PaymentPanel({ order, remaining, config, token, onPay, onPaidOrder, onCancel, paying, canceling }) {
+function PaymentPanel({ order, remaining, config, token, user, onPay, onPaidOrder, onCancel, paying, canceling }) {
   const [method, setMethod] = useState('tarjeta')
   const simulated = config?.payment_provider === 'simulated'
   const izipay = config?.payment_provider === 'izipay'
+  const culqi = config?.payment_provider === 'culqi'
   return (
     <section className="panel p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -111,6 +113,26 @@ function PaymentPanel({ order, remaining, config, token, onPay, onPaidOrder, onC
             Total a pagar: <span className="font-bold text-ink-900">{money(order.total)}</span>
           </p>
           <IzipayForm token={token} orderId={order.id} onPaid={onPaidOrder} />
+          <div className="mt-5">
+            <button onClick={onCancel} disabled={canceling} className="btn-ghost">
+              {canceling ? <Spinner className="h-4 w-4" /> : 'Cancelar pedido'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {culqi && (
+        <div className="mt-5">
+          <p className="mb-3 text-sm text-ink-600">
+            Total a pagar: <span className="font-bold text-ink-900">{money(order.total)}</span>
+          </p>
+          <CulqiForm
+            token={token}
+            order={order}
+            publicKey={config.culqi_public_key}
+            email={user?.email}
+            onPaid={onPaidOrder}
+          />
           <div className="mt-5">
             <button onClick={onCancel} disabled={canceling} className="btn-ghost">
               {canceling ? <Spinner className="h-4 w-4" /> : 'Cancelar pedido'}
@@ -243,7 +265,7 @@ function Notice({ tone, icon: Icon, title, children }) {
 
 export default function OrderDetail() {
   const { id } = useParams()
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const toast = useToast()
   const [order, setOrder] = useState(null)
   const [qr, setQr] = useState(null)
@@ -353,6 +375,7 @@ export default function OrderDetail() {
               remaining={remaining}
               config={config}
               token={token}
+              user={user}
               onPay={handlePay}
               onPaidOrder={handlePaidOrder}
               onCancel={handleCancel}

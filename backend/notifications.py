@@ -135,13 +135,22 @@ def notify_order_paid(order):
     )
 
 
+_GATEWAY_LABELS = {
+    "izipay": ("Izipay", "el Back Office de Izipay"),
+    "culqi": ("Culqi", "el CulqiPanel"),
+}
+
+
 def notify_refund_needed(order, reason):
+    gateway, panel = _GATEWAY_LABELS.get(
+        current_app.config.get("PAYMENT_PROVIDER"), ("La pasarela", "el panel de la pasarela")
+    )
     alert_admin(
         "Pago recibido que hay que reembolsar",
-        f"Izipay confirmó un pago, pero no se pudo preparar el pedido: {reason}\n\n"
+        f"{gateway} confirmó un pago, pero no se pudo preparar el pedido: {reason}\n\n"
         f"Pedido: {order.id}\nCliente: {order.user.name} ({order.user.email})\n"
-        f"Monto: S/. {float(order.total):.2f}\nTransacción Izipay: {order.payment_ref}\n\n"
-        f"Reembolsa el monto desde el Back Office de Izipay.",
+        f"Monto: S/. {float(order.total):.2f}\nTransacción {gateway}: {order.payment_ref}\n\n"
+        f"Reembolsa el monto desde {panel}.",
     )
 
 

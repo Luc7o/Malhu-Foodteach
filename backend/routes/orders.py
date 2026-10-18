@@ -7,8 +7,8 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
 from extensions import db
-from models import Order, OrderItem, Product, Locker, LockerBox, PickupCode
-from payments import get_provider, PaymentError
+from models import Order, OrderItem, Product, Locker, LockerBox, PickupCode, User
+from payments import get_provider, PaymentError, PaymentUnknownError
 from customization import SelectionError, dumps_selection, nutrition_totals, resolve_selection
 from services import FulfillmentError, fulfill_paid_order, stock_problem
 
@@ -106,19 +106,23 @@ def create_order():
 @jwt_required()
 def pay_order(order_id):
     """
-    Cobra el pedido con el proveedor configurado (hoy: pago simulado).
-    Al pagar se asigna una caja libre del locker y se genera el código QR.
-    Body opcional: {"method": "tarjeta" | "yape" | "plin"}
+    Cobra el pedido con el proveedor configurado (simulado o Culqi; Izipay paga por su
+    propio formulario, ver routes/izipay.py). Al pagar se asigna una caja libre del locker
+    y se genera el código QR.
+    Body: {"method": "tarjeta" | "yape" | "plin"}  (pago simulado)
+          {"token_id": "tkn_..."}                  (Culqi: token que entrega el checkout)
     """
     user_id = get_jwt_identity()
-    order = Order.query.get_or_404(order_id)
+    # Bloquea el pedido: un doble clic o dos pestañas no pueden cobrar el mismo pedido dos veces
+    order = Order.query.filter_by(id=order_id).with_for_update().first_or_404()
 
     if order.user_id != user_id:
         return jsonify({"error": "No autorizado"}), 403
     if order.status != "pendiente_pago":
         return jsonify({"error": f"La orden ya está en estado '{order.status}'"}), 400
 
-    method = (request.get_json(silent=True) or {}).get("method", "tarjeta")
+    data = request.get_json(silent=True) or {}
+    method = data.get("method", "tarjeta")
 
     # Vuelve a comprobar el stock: pudo cambiar desde que se creó el pedido
     problem, _ = stock_problem(order, lock=True)
@@ -135,17 +139,50 @@ def pay_order(order_id):
     if not free_box:
         return jsonify({"error": "No hay casilleros libres en ese locker por ahora"}), 409
 
+    user = db.session.get(User, user_id)
+    payload = {
+        "token_id": data.get("token_id"),
+        "email": user.email if user else None,
+        "name": user.name if user else None,
+    }
     try:
         provider = get_provider(current_app.config["PAYMENT_PROVIDER"], current_app.config)
-        payment = provider.charge(order, method)
+        payment = provider.charge(order, method, payload)
+    except PaymentUnknownError as e:
+        # No sabemos si la pasarela llegó a cobrar: el admin debe revisarlo en su panel
+        oid = order.id
+        db.session.rollback()
+        from notifications import alert_admin
+        alert_admin(
+            "Cobro sin confirmar: revisar en la pasarela",
+            f"No se pudo confirmar si se cobró el pedido {oid} (S/. {float(order.total):.2f}). "
+            f"Revisa en el panel de la pasarela si existe un cargo para este pedido "
+            f"(metadata order_id) y, si lo hay, reembólsalo o márcalo como pagado.",
+        )
+        return jsonify({"error": str(e)}), 502
     except PaymentError as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 400
 
+    oid = order.id
     try:
         fulfill_paid_order(order, payment["method"], payment["ref"])
     except FulfillmentError as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 409
+        if provider.name == "simulated":
+            return jsonify({"error": str(e)}), 409
+        # Ya se cobró dinero real: deja constancia, cancela el pedido y avisa para reembolsar
+        order = db.session.get(Order, oid)
+        order.status = "cancelado"
+        order.payment_method = payment["method"]
+        order.payment_ref = payment["ref"]
+        db.session.commit()
+        from notifications import notify_refund_needed
+        notify_refund_needed(order, str(e))
+        return jsonify({
+            "error": "Recibimos tu pago, pero ya no había stock o cajas libres. "
+                     "Te lo devolveremos; te contactaremos pronto."
+        }), 409
     db.session.commit()
 
     from notifications import check_alerts, notify_order_paid

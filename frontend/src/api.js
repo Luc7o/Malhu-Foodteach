@@ -84,6 +84,9 @@ export const api = {
       body: { kr_answer: krAnswer, kr_hash: krHash },
       token,
     }),
+  // Culqi: el checkout entrega un token (tkn_...) y el backend crea el cargo
+  culqiPay: (token, orderId, tokenId) =>
+    request(`/orders/${orderId}/pay`, { method: 'POST', body: { token_id: tokenId }, token }),
   cancelOrder: (token, orderId) =>
     request(`/orders/${orderId}/cancel`, { method: 'POST', token }),
   getOrder: (token, orderId) => request(`/orders/${orderId}`, { token }),

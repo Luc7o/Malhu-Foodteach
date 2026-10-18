@@ -6,6 +6,8 @@ Proveedores:
 - izipay:    formulario incrustado de Izipay (tarjetas y los medios que tengas activados
              en tu contrato). El cobro lo hace el formulario en el navegador; el backend
              solo crea el formToken y confirma el resultado firmado (kr-answer / kr-hash).
+- culqi:     Culqi Custom Checkout (tarjeta y Yape). El navegador tokeniza los datos en Culqi
+             (nunca pasan por este servidor) y el backend crea el cargo con la llave secreta.
 
 Se elige con PAYMENT_PROVIDER en el .env.
 """
@@ -22,6 +24,10 @@ SIMULATED_METHODS = {"tarjeta", "yape", "plin"}
 
 class PaymentError(Exception):
     pass
+
+
+class PaymentUnknownError(PaymentError):
+    """No sabemos si el cobro se hizo (tiempo agotado, error 5xx de la pasarela...)."""
 
 
 class SimulatedProvider:
@@ -114,13 +120,102 @@ class IzipayProvider:
         return {"publicKey": self.public_key, "endpoint": self.static_url}
 
 
-PROVIDERS = {"simulated": SimulatedProvider, "izipay": IzipayProvider}
+class CulqiProvider:
+    """
+    Culqi: el Custom Checkout del navegador entrega un token (tkn_...) y aquí se crea el
+    cargo (POST /v2/charges) con la llave secreta. Cubre tarjeta y Yape (ambos son token).
+    Pendiente: 3D Secure (Culqi3DS), PagoEfectivo/billeteras/Cuotéalo (usan órdenes + webhook).
+    """
+    name = "culqi"
+
+    def __init__(self, config):
+        self.public_key = (config.get("CULQI_PUBLIC_KEY") or "").strip()
+        self.secret_key = (config.get("CULQI_SECRET_KEY") or "").strip()
+        self.api_url = (config.get("CULQI_API_URL") or "https://api.culqi.com").rstrip("/")
+        if not (self.public_key and self.secret_key):
+            raise PaymentError("Faltan credenciales de Culqi (CULQI_PUBLIC_KEY, CULQI_SECRET_KEY).")
+        if not self.public_key.startswith("pk_") or not self.secret_key.startswith("sk_"):
+            raise PaymentError(
+                "Las llaves de Culqi no tienen el formato esperado (pk_test_... / sk_test_...)."
+            )
+        if ("_test_" in self.public_key) != ("_test_" in self.secret_key):
+            raise PaymentError(
+                "Las llaves de Culqi mezclan modo integración (test) con producción (live)."
+            )
+
+    def public_info(self):
+        return {"publicKey": self.public_key}
+
+    def charge(self, order, method, payload=None):
+        payload = payload or {}
+        token_id = str(payload.get("token_id") or "").strip()
+        if not token_id.startswith("tkn_"):
+            raise PaymentError("No recibimos los datos del pago. Vuelve a intentarlo.")
+        email = payload.get("email")
+        if not email:
+            raise PaymentError("Tu cuenta no tiene un correo para emitir el pago.")
+
+        body = {
+            "amount": int(round(float(order.total) * 100)),  # en céntimos
+            "currency_code": "PEN",
+            "email": email,
+            "source_id": token_id,
+            "capture": True,
+            "description": f"Pedido MALHU {str(order.id)[:8]}",
+            "metadata": {"order_id": str(order.id)},
+        }
+        try:
+            resp = requests.post(
+                f"{self.api_url}/v2/charges",
+                json=body,
+                headers={
+                    "Authorization": f"Bearer {self.secret_key}",
+                    "Content-Type": "application/json",
+                },
+                timeout=25,
+            )
+        except requests.RequestException:
+            raise PaymentUnknownError(
+                "No pudimos confirmar el pago con Culqi. Si te cobraron, escríbenos y lo revisamos."
+            )
+        try:
+            data = resp.json()
+        except ValueError:
+            data = {}
+        if not isinstance(data, dict):
+            data = {}
+
+        if resp.status_code >= 500:
+            raise PaymentUnknownError(
+                "Culqi no respondió bien. Si te cobraron, escríbenos y lo revisamos."
+            )
+        if resp.status_code == 200:
+            # Culqi responde 200 (no 201) cuando el banco exige autenticación 3D Secure
+            raise PaymentError(
+                "Tu banco pidió una verificación 3D Secure que aún no está habilitada en la tienda. "
+                "Prueba con otra tarjeta o con Yape."
+            )
+        if resp.status_code != 201:
+            detail = data.get("user_message") or data.get("merchant_message") or "el pago fue rechazado"
+            raise PaymentError(f"No se pudo cobrar: {detail}")
+
+        outcome = data.get("outcome") or {}
+        approved = "venta_exitosa" in (outcome.get("type"), data.get("response_code"))
+        if data.get("object") != "charge" or not data.get("id") or not approved:
+            raise PaymentUnknownError(
+                "No pudimos confirmar el pago con Culqi. Si te cobraron, escríbenos y lo revisamos."
+            )
+        source_type = ((data.get("source") or {}).get("type") or "").lower()
+        return {"ref": data["id"], "method": "yape" if source_type == "yape" else "tarjeta"}
+
+
+PROVIDERS = {"simulated": SimulatedProvider, "izipay": IzipayProvider, "culqi": CulqiProvider}
 
 
 def get_provider(name, config=None):
     cls = PROVIDERS.get(name)
     if not cls:
         raise PaymentError(
-            f"La pasarela '{name}' no está configurada. Usa PAYMENT_PROVIDER=simulated o izipay."
+            f"La pasarela '{name}' no está configurada. Usa PAYMENT_PROVIDER=simulated, izipay o culqi."
         )
     return cls(config or {})

@@ -83,6 +83,10 @@ def create_app():
     def public_config():
         return jsonify({
             "payment_provider": app.config["PAYMENT_PROVIDER"],
+            # La llave pública de Culqi es pública por diseño; la secreta nunca sale del servidor
+            "culqi_public_key": (
+                app.config["CULQI_PUBLIC_KEY"] if app.config["PAYMENT_PROVIDER"] == "culqi" else None
+            ),
             "pickup_hours": app.config["PICKUP_CODE_EXPIRATION_HOURS"],
             "pending_ttl_minutes": app.config["PENDING_ORDER_TTL_MINUTES"],
             "currency": "PEN",
