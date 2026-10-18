@@ -4,6 +4,7 @@ import { Heart, Search, X } from 'lucide-react'
 import { api } from '../api'
 import { useCart } from '../context/CartContext'
 import { useToast } from '../context/ToastContext'
+import { useQuickCheckout } from '../lib/quickCheckout'
 import { EmptyState } from '../components/ui'
 import PageHeader from '../components/PageHeader'
 import { ProductCard, ProductCardSkeleton } from '../components/ProductCard'
@@ -20,6 +21,7 @@ export default function Menu() {
   const [error, setError] = useState('')
   const { addItem } = useCart()
   const toast = useToast()
+  const quickCheckout = useQuickCheckout()
 
   // Los filtros viven en la URL: /menu?categoria=Bebidas&q=jugo&orden=precio_asc&disponibles=1
   const search = params.get('q') || ''
@@ -70,6 +72,7 @@ export default function Menu() {
   function handleAdd(product, qty, options = []) {
     addItem(product, qty, options)
     toast.success(`${qty} × ${product.name} en el carrito`)
+    quickCheckout(product, qty, options)
   }
 
   return (

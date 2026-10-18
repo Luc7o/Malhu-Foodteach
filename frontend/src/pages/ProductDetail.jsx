@@ -4,6 +4,7 @@ import { ArrowLeft, Check, History, Minus, Plus, ShoppingBag, Sparkles, Zap } fr
 import { api } from '../api'
 import { useCart } from '../context/CartContext'
 import { useToast } from '../context/ToastContext'
+import { useQuickCheckout } from '../lib/quickCheckout'
 import DishOptions from '../components/DishOptions'
 import NutritionFacts from '../components/NutritionFacts'
 import { EmptyState, PageLoader, ProductImage } from '../components/ui'
@@ -16,6 +17,7 @@ export default function ProductDetail() {
   const { id } = useParams()
   const { addItem, count } = useCart()
   const toast = useToast()
+  const quickCheckout = useQuickCheckout()
 
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -95,6 +97,7 @@ export default function ProductDetail() {
     addItem(product, qty, options)
     toast.success(`${qty} × ${product.name} en el carrito`)
     setJustAdded(true)
+    quickCheckout(product, qty, options)
   }
 
   if (loading) return <PageLoader label="Cargando producto..." />
