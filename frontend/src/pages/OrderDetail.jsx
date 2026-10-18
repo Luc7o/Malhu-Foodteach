@@ -143,38 +143,15 @@ function PaymentPanel({ order, remaining, config, token, user, onPay, onPaidOrde
 
       {simulated && (
         <>
-        <fieldset className="mt-5">
-          <legend className="label">Método de pago</legend>
-          <div className="grid grid-cols-3 gap-2">
-            {METHODS.map(([value, label, Icon]) => (
-              <label
-                key={value}
-                className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-3 py-3 text-sm font-medium transition-colors ${
-                  method === value ? 'border-ink-900 bg-ink-50 text-ink-900' : 'border-ink-200 text-ink-600 hover:border-ink-300'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="method"
-                  value={value}
-                  checked={method === value}
-                  onChange={() => setMethod(value)}
-                  className="sr-only"
-                />
-                <Icon className="h-5 w-5" aria-hidden="true" />
-                {label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        {/* Modo demostración: sin elegir método de pago, solo el botón Comprar */}
 
-        <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Pago de prueba: no se cobra dinero real.
+        <p className="mt-5 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Modo demostración: no se cobra dinero real.
         </p>
 
         <div className="mt-6 flex flex-wrap gap-3">
           <button onClick={() => onPay(method)} disabled={paying || canceling} className="btn-primary !px-6 !py-3">
-            {paying ? <Spinner className="h-4 w-4" /> : `Pagar ${money(order.total)}`}
+            {paying ? <Spinner className="h-4 w-4" /> : `Comprar ${money(order.total)}`}
           </button>
           <button onClick={onCancel} disabled={paying || canceling} className="btn-ghost">
             {canceling ? <Spinner className="h-4 w-4" /> : 'Cancelar pedido'}

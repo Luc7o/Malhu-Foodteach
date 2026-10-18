@@ -41,11 +41,13 @@ with app.app_context():
     db.session.commit()
     locker_id, product_id = locker.id, p.id
 
-# --- validaciones ---
+# --- validaciones (con una pasarela real los datos son obligatorios) ---
+app.config["PAYMENT_PROVIDER"] = "culqi"
 check("sin nombre se rechaza", client.post("/api/auth/guest", json={"email": "a@b.com"}).status_code == 400)
 check("correo inválido se rechaza", client.post("/api/auth/guest", json={"name": "Lucio", "email": "xx"}).status_code == 400)
 r = client.post("/api/auth/guest", json={"name": "Lucio", "email": "ANA@mail.com"})
 check("correo de una cuenta existente pide iniciar sesión (409)", r.status_code == 409)
+app.config["PAYMENT_PROVIDER"] = "simulated"
 
 # --- invitado ---
 r = client.post("/api/auth/guest", json={"name": "Lucio", "email": "Lucio@Mail.com"})
@@ -85,4 +87,19 @@ check("admin busca pedidos por el correo real del invitado", len(rows) == 1)
 cust = client.get("/api/admin/customers", headers=auth(adm)).get_json()
 crows = cust["items"] if isinstance(cust, dict) and "items" in cust else cust
 check("los invitados no aparecen como clientes", all(c["email"] != "lucio@mail.com" for c in crows))
+# --- datos opcionales solo con el pago de prueba ---
+r = client.post("/api/auth/guest", json={})
+check("con pago de prueba se entra sin datos", r.status_code == 201)
+anon = r.get_json()
+check("sin datos: se llama Invitado y no tiene correo", anon["user"]["name"] == "Invitado" and not anon["user"]["email"])
+r = client.post("/api/orders", headers=auth(anon["token"]), json={"locker_id": locker_id, "items": [{"product_id": product_id, "quantity": 1}]})
+oid2 = r.get_json()["id"]
+r = client.post(f"/api/orders/{oid2}/pay", headers=auth(anon["token"]), json={"method": "tarjeta"})
+check("el invitado sin datos paga (sin correo no se rompe el aviso)", r.status_code == 200)
+check("un correo mal escrito se rechaza igual", client.post("/api/auth/guest", json={"email": "xx"}).status_code == 400)
+
+app.config["PAYMENT_PROVIDER"] = "culqi"
+check("con Culqi los datos vuelven a ser obligatorios", client.post("/api/auth/guest", json={}).status_code == 400)
+app.config["PAYMENT_PROVIDER"] = "simulated"
+
 print("\nTodo bien.")

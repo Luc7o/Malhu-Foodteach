@@ -65,17 +65,22 @@ def guest():
     name = (data.get("name") or "").strip()
     email = (data.get("email") or "").strip().lower()
 
-    if not name or not email:
+    # Con el pago de prueba (PAYMENT_PROVIDER=simulated) los datos son opcionales para agilizar.
+    # Con una pasarela real se piden siempre: Culqi/Izipay necesitan el correo del pago.
+    optional = current_app.config["PAYMENT_PROVIDER"] == "simulated"
+    if optional:
+        name = name or "Invitado"
+    elif not name or not email:
         return jsonify({"error": "Escribe tu nombre y tu correo para continuar"}), 400
     if len(name) > 120 or len(email) > 120:
         return jsonify({"error": "El nombre o el correo es demasiado largo"}), 400
-    if "@" not in email or "." not in email.split("@")[-1]:
-        return jsonify({"error": "Ingresa un correo válido"}), 400
-
-    if User.query.filter(func.lower(User.email) == email).first():
-        return jsonify({
-            "error": "Ese correo ya tiene una cuenta. Inicia sesión para continuar con tu pedido."
-        }), 409
+    if email:
+        if "@" not in email or "." not in email.split("@")[-1]:
+            return jsonify({"error": "Ingresa un correo válido"}), 400
+        if User.query.filter(func.lower(User.email) == email).first():
+            return jsonify({
+                "error": "Ese correo ya tiene una cuenta. Inicia sesión para continuar con tu pedido."
+            }), 409
 
     user = User(
         name=name,
@@ -85,7 +90,8 @@ def guest():
     user.set_password(secrets.token_urlsafe(24))  # nadie la conoce: no se puede iniciar sesión
     db.session.add(user)
     db.session.flush()
-    db.session.add(GuestContact(user_id=user.id, email=email))
+    if email:
+        db.session.add(GuestContact(user_id=user.id, email=email))
     db.session.commit()
 
     # La sesión dura lo que el código de retiro + 1 día, para que pueda volver a ver su pedido

@@ -43,9 +43,12 @@ class User(db.Model):
 
     @property
     def contact_email(self):
-        """Correo real de contacto. En clientes es su email; en invitados, el que escribieron al comprar."""
-        if self.guest_contact and self.guest_contact.email:
-            return self.guest_contact.email
+        """
+        Correo real de contacto. En clientes es su email; en invitados, el que escribieron al
+        comprar (o None si no dejaron ninguno: su email interno no sirve para escribirles).
+        """
+        if self.is_guest:
+            return self.guest_contact.email if self.guest_contact else None
         return self.email
 
     def set_password(self, password):

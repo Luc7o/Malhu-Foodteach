@@ -130,7 +130,7 @@ def notify_order_paid(order):
     alert_admin(
         f"Pedido nuevo de {order.user.name}",
         f"Pedido nuevo pagado: S/. {float(order.total):.2f}\n"
-        f"Cliente: {order.user.name} ({order.user.contact_email})\n"
+        f"Cliente: {order.user.name} ({order.user.contact_email or "sin correo"})\n"
         f"Caja {box_number} de {locker}\n{items}",
     )
 
@@ -148,7 +148,7 @@ def notify_refund_needed(order, reason):
     alert_admin(
         "Pago recibido que hay que reembolsar",
         f"{gateway} confirmó un pago, pero no se pudo preparar el pedido: {reason}\n\n"
-        f"Pedido: {order.id}\nCliente: {order.user.name} ({order.user.contact_email})\n"
+        f"Pedido: {order.id}\nCliente: {order.user.name} ({order.user.contact_email or "sin correo"})\n"
         f"Monto: S/. {float(order.total):.2f}\nTransacción {gateway}: {order.payment_ref}\n\n"
         f"Reembolsa el monto desde {panel}.",
     )

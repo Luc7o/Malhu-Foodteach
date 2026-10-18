@@ -13,10 +13,10 @@ import { lineKey } from './dish'
  *
  * Con cualquier otra pasarela (culqi, izipay) no hace nada y todo funciona como siempre,
  * así que volver al flujo normal es solo cambiar PAYMENT_PROVIDER en el backend.
- * Si falta algo (no hay sesión, no hay locker libre, algo falla) lleva al carrito.
+ * Si falta algo (no hay locker libre, algo falla) lleva al carrito.
  */
 export function useQuickCheckout() {
-  const { token } = useAuth()
+  const { token, guestLogin } = useAuth()
   const { items, clearCart } = useCart()
   const navigate = useNavigate()
   const toast = useToast()
@@ -29,10 +29,11 @@ export function useQuickCheckout() {
       const config = await api.getConfig()
       if (config.payment_provider !== 'simulated') return
 
-      // Sin sesión se necesitan nombre y correo: eso se pide en el carrito
-      if (!token) {
-        navigate('/cart')
-        return
+      // Sin sesión se compra como invitado sin pedir datos (en modo de prueba son opcionales)
+      let authToken = token
+      if (!authToken) {
+        const session = await guestLogin('', '')
+        authToken = session.token
       }
 
       // El pedido lleva lo que ya había en el carrito más lo que se acaba de agregar
@@ -53,7 +54,7 @@ export function useQuickCheckout() {
         navigate('/cart')
         return
       }
-      const order = await api.createOrder(token, lines, locker.id)
+      const order = await api.createOrder(authToken, lines, locker.id)
       clearCart()
       navigate(`/orders/${order.id}`)
     } catch (e) {

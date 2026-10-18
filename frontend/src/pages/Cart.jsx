@@ -48,6 +48,7 @@ export default function Cart() {
   const { token, user, isGuest, guestLogin, logout } = useAuth()
   const [guestName, setGuestName] = useState('')
   const [guestEmail, setGuestEmail] = useState('')
+  const [config, setConfig] = useState(null)
   const [lockers, setLockers] = useState([])
   const [lockerId, setLockerId] = useState('')
   const [error, setError] = useState('')
@@ -55,6 +56,13 @@ export default function Cart() {
   const [submitting, setSubmitting] = useState(false)
   const navigate = useNavigate()
   const toast = useToast()
+
+  // Con el pago de prueba (simulated) el nombre y el correo del invitado son opcionales
+  const dataOptional = config?.payment_provider === 'simulated'
+
+  useEffect(() => {
+    api.getConfig().then(setConfig).catch(() => {})
+  }, [])
 
   useEffect(() => {
     api
@@ -74,7 +82,7 @@ export default function Cart() {
       setError('Elige un locker para retirar tu pedido')
       return
     }
-    if (!token && (!guestName.trim() || !guestEmail.trim())) {
+    if (!token && !dataOptional && (!guestName.trim() || !guestEmail.trim())) {
       setError('Escribe tu nombre y tu correo para continuar, o inicia sesión.')
       return
     }
@@ -92,6 +100,14 @@ export default function Cart() {
         option_ids: i.options.map((o) => o.id),
       }))
       const order = await api.createOrder(authToken, orderItems, lockerId)
+      // Modo demostración (pago simulado): se compra con un solo clic, sin pasar por la página de pago
+      if (dataOptional) {
+        try {
+          await api.payOrder(authToken, order.id, 'tarjeta')
+        } catch (payError) {
+          toast.error(payError.message) // el pedido ya existe: se puede pagar desde su página
+        }
+      }
       clearCart()
       navigate(`/orders/${order.id}`)
     } catch (e) {
@@ -208,9 +224,13 @@ export default function Cart() {
           {!token && (
             <div className="space-y-3 border-t border-ink-200 pt-4">
               <div>
-                <h2 className="text-sm font-semibold text-ink-700">Tus datos</h2>
+                <h2 className="text-sm font-semibold text-ink-700">
+                  Tus datos{dataOptional ? ' (opcionales)' : ''}
+                </h2>
                 <p className="mt-0.5 text-xs text-ink-500">
-                  Compra sin crear cuenta. Te enviaremos el código QR a tu correo.
+                  {dataOptional
+                    ? 'Puedes comprar sin escribir nada. Si dejas tu correo, te enviaremos el código QR.'
+                    : 'Compra sin crear cuenta. Te enviaremos el código QR a tu correo.'}
                 </p>
               </div>
               <div>
@@ -266,9 +286,11 @@ export default function Cart() {
               disabled={submitting || !selectedLocker || selectedLocker.boxes_libres === 0}
               className="btn-primary w-full !py-3"
             >
-              {submitting ? <Spinner className="h-4 w-4" /> : 'Confirmar pedido'}
+              {submitting ? <Spinner className="h-4 w-4" /> : dataOptional ? 'Comprar' : 'Confirmar pedido'}
             </button>
-            <p className="mt-2 text-center text-xs text-ink-500">El pago se hace en el siguiente paso.</p>
+            <p className="mt-2 text-center text-xs text-ink-500">
+              {dataOptional ? 'Modo demostración: no se cobra dinero real.' : 'El pago se hace en el siguiente paso.'}
+            </p>
           </div>
         </aside>
       </div>
